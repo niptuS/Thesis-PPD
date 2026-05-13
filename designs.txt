@@ -1,0 +1,271 @@
+┌ SH-DATASET :: experiment=EXP-2026-05-011 :: status=IDLE :: capture=READY    ┐
+├──────────────────────┬──────────────────────────────────────────────────────┤
+│ MENU                 │ HOME                                                 │
+│ > Home               │                                                      │
+│   Scenario Editor    │  Experiment ID : EXP-2026-05-011                     │
+│   Devices            │  Environment   : SmartHomeLab-v1                     │
+│   Benign Profiles    │  Orchestrator  : 1.0.0                               │
+│   Attack Library     │  Last run      : 2026-05-11 18:32                    │
+│   Timeline           │                                                      │
+│   Live Execution     │  Quick summary                                       │
+│   Logs               │  - Devices ready      : 8                            │
+│   Artifacts          │  - Benign profiles    : 4                            │
+│   Help               │  - Attack modules     : 5                            │
+│                      │  - Scheduled events   : 12                           │
+│                      │  - Last PCAP          : exp-011-run02.pcap           │
+│                      │  - Last metadata      : exp-011-run02.json           │
+│                      │                                                      │
+│                      │  Quick actions                                       │
+│                      │  [Enter] Open selected section                       │
+│                      │  [Ctrl+R] Start scenario                             │
+│                      │  [Ctrl+S] Save current scenario                      │
+│                      │  [/] Search section                                  │
+├──────────────────────┴──────────────────────────────────────────────────────┤
+│ Hint: vista general del sistema. Usa ↑↓ para navegar, Enter para abrir, ?   │
+│ para ayuda contextual, Ctrl+R para ejecutar y Ctrl+L para abrir logs.       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌ SH-DATASET :: experiment=EXP-2026-05-011 :: status=EDITING :: section=SCENARIO  ┐
+├──────────────────────┬──────────────────────────────────────────────────────────┤
+│ MENU                 │ SCENARIO EDITOR                                          │
+│   Home               │                                                          │
+│ > Scenario Editor    │  Name              : SmartHome Mixed Traffic Morning     │
+│   Devices            │  Experiment ID     : EXP-2026-05-011                     │
+│   Benign Profiles    │  Environment       : SmartHomeLab-v1                     │
+│   Attack Library     │  Start time        : 2026-05-11 10:00:00                 │
+│   Timeline           │  Planned duration  : 00:45:00                            │
+│   Live Execution     │  Output folder     : /data/experiments/exp-011           │
+│   Logs               │  Capture enabled   : [x]                                 │
+│   Artifacts          │  Metadata export   : [x] JSON                            │
+│   Help               │  PCAP export       : [x]                                 │
+│                      │                                                          │
+│                      │                                                          │
+│                      │                                                          │
+│                      │                                                          │
+│                      │                                                          │
+│                      │  Actions                                                 │
+│                      │  [Enter] Edit field   [A] Add field   [D] Delete field   │
+│                      │  [Ctrl+S] Save        [Esc] Back                         │
+├──────────────────────┴──────────────────────────────────────────────────────────┤
+│ Hint: aquí defines el escenario base. Configura identidad, duración y salidas.  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌ SH-DATASET :: experiment=EXP-2026-05-011 :: status=EDITING :: section=DEVICES  ┐
+├──────────────────────┬─────────────────────────────────────────────────────────┤
+│ MENU                 │ DEVICES                                                 │
+│   Home               │                                                         │
+│   Scenario Editor    │  Registered nodes                                       │
+│ > Devices            │                                                         │
+│   Benign Profiles    │  ID            Role         IP             Status       │
+│   Attack Library     │  smartbulb01   target       192.168.1.10   online       │
+│   Timeline           │  smartbulb02   target       192.168.1.11   online       │
+│   Live Execution     │  smartplug01   target       192.168.1.20   online       │
+│   Logs               │  camera01      target       192.168.1.30   online       │
+│   Artifacts          │  echo01        benign       192.168.1.40   online       │
+│   Help               │  kalivm        attacker     192.168.1.50   ready        │
+│                      │                                                         │
+│                      │                                                         │
+│                      │  Selected node                                          │
+│                      │  smartbulb01                                            │
+│                      │  - MAC      : AA:BB:CC:DD:EE:01                         │
+│                      │  - Protocols: HTTP, MQTT                                │
+│                      │  - Tags     : bulb, kitchen, wifi                       │
+│                      │                                                         │
+│                      │  Actions: [A] Add  [E] Edit  [R] Remove  [T] Tag        │
+├──────────────────────┴─────────────────────────────────────────────────────────┤
+│ Hint: revisa dispositivos, roles y direcciones antes de planificar eventos.    │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌ SH-DATASET :: experiment=EXP-2026-05-011 :: status=EDITING :: section=BENIGN  ┐
+├──────────────────────┬────────────────────────────────────────────────────────┤
+│ MENU                 │ BENIGN PROFILES                                        │
+│   Home               │                                                        │
+│   Scenario Editor    │  Available profiles                                    │
+│   Devices            │                                                        │
+│ > Benign Profiles    │  [x] camera_stream_low      1 camera / periodic upload │
+│   Attack Library     │  [x] smartplug_telemetry    2 plugs / 30s heartbeat    │
+│   Timeline           │  [x] bulb_state_updates     3 bulbs / event driven     │
+│   Live Execution     │  [ ] alexa_interactions     user commands / sporadic   │
+│   Logs               │                                                        │
+│   Artifacts          │  Selected profile: camera_stream_low                   │
+│   Help               │  - Device class : camera                               │
+│                      │  - Protocol     : RTSP / HTTP                          │
+│                      │  - Rate         : 1 stream                             │
+│                      │  - Duration     : 00:45:00                             │
+│                      │  - Start offset : 00:00:00                             │
+│                      │                                                        │
+│                      │  Actions                                               │
+│                      │  [Space] Toggle  [Enter] Edit  [C] Clone  [N] New      │
+├──────────────────────┴────────────────────────────────────────────────────────┤
+│ Hint: activa patrones benignos base para dar contexto realista a la captura.  │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌ SH-DATASET :: experiment=EXP-2026-05-011 :: status=EDITING :: section=ATTACKS  ┐
+├──────────────────────┬─────────────────────────────────────────────────────────┤
+│ MENU                 │ ATTACK LIBRARY                                          │
+│   Home               │                                                         │
+│   Scenario Editor    │  Modules                                                │
+│   Devices            │                                                         │
+│   Benign Profiles    │  > DoS HTTP Flood                                       │
+│ > Attack Library     │    Port Scan                                            │
+│   Timeline           │    ARP Spoof / MitM                                     │
+│   Live Execution     │    SYN Flood                                            │
+│   Logs               │    Brute Force HTTP                                     │
+│   Artifacts          │                                                         │
+│   Help               │  Selected module: DoS HTTP Flood                        │
+│                      │  - Source node   : kalivm                               │
+│                      │  - Target node   : camera01                             │
+│                      │  - Duration      : 00:03:00                             │
+│                      │  - Intensity     : medium                               │
+│                      │  - Label         : DoS                                  │
+│                      │  - MITRE ref     : T1498.001                            │
+│                      │                                                         │
+│                      │  Actions                                                │
+│                      │  [Enter] Configure  [A] Add module  [D] Delete          │
+│                      │  [V] Validate params                                    │
+├──────────────────────┴─────────────────────────────────────────────────────────┤
+│ Hint: define origen, objetivo, duración y taxonomía del ataque seleccionado.   │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌ SH-DATASET :: experiment=EXP-2026-05-011 :: status=EDITING :: section=TIMELINE  ┐
+├──────────────────────┬──────────────────────────────────────────────────────────┤
+│ MENU                 │ TIMELINE                                                 │
+│   Home               │                                                          │
+│   Scenario Editor    │  Scheduled events                                        │
+│   Devices            │                                                          │
+│   Benign Profiles    │  Time       Type      Source      Target       Status    │
+│   Attack Library     │  10:00:00   benign    echo01      smartbulb01   queued   │
+│ > Timeline           │  10:00:00   benign    camera01    network       queued   │
+│   Live Execution     │  10:05:00   attack    kalivm      camera01      queued   │
+│   Logs               │  10:12:00   benign    echo01      smartplug01   queued   │
+│   Artifacts          │  10:15:00   attack    kalivm      smartplug01   queued   │
+│   Help               │                                                          │
+│                      │  Selected event                                          │
+│                      │  - Timestamp   : 10:05:00                                │
+│                      │  - Event type  : attack                                  │
+│                      │  - Action      : DoS HTTP Flood                          │
+│                      │  - Notes       : attack after baseline warmup            │
+│                      │                                                          │
+│                      │  Actions: [A] Add  [E] Edit  [M] Move  [X] Delete        │
+├──────────────────────┴──────────────────────────────────────────────────────────┤
+│ Hint: organiza qué ocurre, cuándo ocurre y sobre qué actor se ejecuta.          │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌ SH-DATASET :: experiment=EXP-2026-05-011 :: status=RUNNING :: capture=ACTIVE  ┐
+├──────────────────────┬────────────────────────────────────────────────────────┤
+│ MENU                 │ LIVE EXECUTION                                         │
+│   Home               │                                                        │
+│   Scenario Editor    │  Runtime                                               │
+│   Devices            │  - Started at     : 10:00:00                           │
+│   Benign Profiles    │  - Elapsed        : 00:17:23                           │
+│   Attack Library     │  - Remaining      : 00:27:37                           │
+│   Timeline           │  - PCAP file      : exp-011-run03.pcap                 │
+│ > Live Execution     │  - Metadata file  : exp-011-run03.json                 │
+│   Logs               │                                                        │
+│   Artifacts          │                                                        │
+│   Help               │  Current activity                                      │
+│                      │  - Active benign : camera_stream_low                   │
+│                      │  - Active attack : none                                │
+│                      │  - Next event    : SYN Flood -> smartplug01 @10:20:00  │
+│                      │                                                        │
+│                      │  Health                                                │
+│                      │  [capture: OK] [logger: OK] [clock sync: OK]           │
+│                      │                                                        │
+│                      │  Actions                                               │
+│                      │  [Ctrl+P] Pause  [Ctrl+R] Resume  [Ctrl+X] Abort       │
+├──────────────────────┴────────────────────────────────────────────────────────┤
+│ Hint: monitorea la corrida actual sin abandonar el sistema ni perder contexto.│
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌ SH-DATASET :: experiment=EXP-2026-05-011 :: status=RUNNING :: section=LOGS   ┐
+├──────────────────────┬───────────────────────────────────────────────────────┤
+│ MENU                 │ LOGS                                                  │
+│   Home               │                                                       │
+│   Scenario Editor    │  Live event stream                                    │
+│   Devices            │                                                       │
+│   Benign Profiles    │  10:00:00 INFO  scenario started                      │
+│   Attack Library     │  10:00:01 INFO  capture started on capturenode        │
+│   Timeline           │  10:00:03 INFO  benign profile camera_stream_low on   │
+│   Live Execution     │                 camera01 executed                     │
+│ > Logs               │  10:05:00 INFO  attack module DoS HTTP Flood started  │
+│   Artifacts          │  10:05:01 INFO  source=kalivm target=camera01         │
+│   Help               │  10:08:00 INFO  attack module DoS HTTP Flood ended    │
+│                      │  10:12:00 INFO  benign interaction smartplug01        │
+│                      │  10:16:20 WARN  transient packet drop observed        │
+│                      │  10:16:21 INFO  capture stabilized                    │
+│                      │                                                       │
+│                      │  Filters: [All] [Info] [Warn] [Error] [Attack]        │
+│                      │  Actions: [/] Search  [F] Filter  [E] Export slice    │
+├──────────────────────┴───────────────────────────────────────────────────────┤
+│ Hint: aquí ves los eventos en orden temporal para revisar trazabilidad.      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌ SH-DATASET :: experiment=EXP-2026-05-011 :: status=READY :: section=ARTIFACTS  ┐
+├──────────────────────┬─────────────────────────────────────────────────────────┤
+│ MENU                 │ ARTIFACTS                                               │
+│   Home               │                                                         │
+│   Scenario Editor    │  Generated files                                        │
+│   Devices            │                                                         │
+│   Benign Profiles    │  Name                    Type      Size      Status     │
+│   Attack Library     │  exp-011-run03.pcap      PCAP      428 MB    complete   │
+│   Timeline           │  exp-011-run03.json      metadata  18 KB     complete   │
+│   Live Execution     │  exp-011-run03.log       log       74 KB     complete   │
+│   Logs               │  exp-011-run03.flows.csv flow      2.3 MB    optional   │
+│ > Artifacts          │                                                         │
+│   Help               │  Selected artifact: exp-011-run03.json                  │
+│                      │  - Schema version : 1.0                                 │
+│                      │  - Start time     : 2026-05-12T10:00:00Z                │
+│                      │  - Events         : 12                                  │
+│                      │  - Exportable     : yes                                 │
+│                      │                                                         │
+│                      │  Actions: [Enter] Open info  [E] Export  [C] Checksum   │
+├──────────────────────┴─────────────────────────────────────────────────────────┤
+│ Hint: revisa y exporta PCAP, metadatos y registros de cada ejecución.          │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌ SH-DATASET :: experiment=EXP-2026-05-011 :: status=READY :: section=HELP   ┐
+├──────────────────────┬─────────────────────────────────────────────────────┤
+│ MENU                 │ HELP                                                │
+│   Home               │                                                     │
+│   Scenario Editor    │  Navigation                                         │
+│   Devices            │  - ↑↓ move in menu or lists                         │
+│   Benign Profiles    │  - Enter open / edit                                │
+│   Attack Library     │  - Esc back                                         │
+│   Timeline           │  - Tab change focus                                 │
+│   Live Execution     │  - ? contextual help                                │
+│   Logs               │  - q close current panel                            │
+│   Artifacts          │                                                     │
+│ > Help               │                                                     │
+│                      │  Global shortcuts                                   │
+│                      │  - Ctrl+S save scenario                             │
+│                      │  - Ctrl+R start/resume                              │
+│                      │  - Ctrl+P pause                                     │
+│                      │  - Ctrl+L open logs                                 │
+│                      │  - Ctrl+X abort scenario                            │
+│                      │                                                     │
+│                      │  Recommended flow                                   │
+│                      │  1. Scenario Editor                                 │
+│                      │  2. Devices                                         │
+│                      │  3. Benign Profiles                                 │
+│                      │  4. Attack Library                                  │
+│                      │  5. Timeline                                        │
+│                      │  6. Live Execution                                  │
+│                      │  7. Artifacts                                       │
+├──────────────────────┴─────────────────────────────────────────────────────┤
+│ Hint: usa esta vista como referencia rápida del flujo completo del sistema.│
+└────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────── CONTEXT HELP ─────────────────────────────┐
+│ Section : Timeline                                                    │
+│                                                                       │
+│ This section lets you define the temporal order of the experiment.    │
+│ Add benign and attack events, assign timestamps, and verify that      │
+│ every event has a valid source, target and action.                    │
+│                                                                       │
+│ Tips                                                                  │
+│ - Start with a short benign warmup.                                   │
+│ - Avoid overlapping attacks unless intentional.                       │
+│ - Validate timestamps before execution.                               │
+│                                                                       │
+│ Shortcuts                                                             │
+│ [A] Add event   [E] Edit   [M] Move   [X] Delete   [Esc] Close        │
+└───────────────────────────────────────────────────────────────────────┘
