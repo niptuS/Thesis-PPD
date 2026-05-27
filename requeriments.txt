@@ -1,7 +1,8 @@
-nfstream
-scapy
-pwntools
-requests
-Twisted
-flake8
+nfstream == 6.6.0
+scapy == 2.7.0
+pwntools == 4.15.0
+requests == 2.33.1
+Twisted == 26.4.0
+flake8 == 7.3.0
+python-nmap == 0.7.1
 windows-curses; sys_platform == "win32"
