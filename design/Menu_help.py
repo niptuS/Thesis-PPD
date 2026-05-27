@@ -1,0 +1,33 @@
+from design.Menu_types import Section
+
+HELP_SECTION = Section(
+    key="help",
+    label="Help",
+    hint="Referencia rápida del flujo completo. Esc=volver",
+    content_lines=[
+        "─── Navigation ───────────────────────────────────",
+        "",
+        "  ↑↓       move in menu or lists",
+        "  Enter    open / edit",
+        "  Esc      back to Home",
+        "  Tab      cycle sections",
+        "  ?        contextual help",
+        "  q        close current panel",
+        "",
+        "─── Global Shortcuts ─────────────────────────────",
+        "",
+        "  Ctrl+S   save scenario",
+        "  Ctrl+R   start / resume",
+        "  Ctrl+P   pause",
+        "  Ctrl+L   open logs",
+        "  Ctrl+X   abort scenario",
+        "",
+        "─── Recommended Flow ─────────────────────────────",
+        "",
+        "  1. Scenario Editor   2. Devices",
+        "  3. Benign Profiles   4. Attack Library",
+        "  5. Timeline          6. Live Execution",
+        "  7. Artifacts",
+    ],
+    actions=["Esc Back"],
+)

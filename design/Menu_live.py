@@ -1,0 +1,31 @@
+from design.Menu_types import Section
+
+LIVE_SECTION = Section(
+    key="live",
+    label="Live Execution",
+    hint="Monitorea la corrida en tiempo real. Ctrl+P=pausar · Ctrl+R=reanudar · Ctrl+X=abortar",
+    content_lines=[
+        "─── Runtime ──────────────────────────────────────",
+        "",
+        "  Started at    : 10:00:00",
+        "  Elapsed       : 00:17:23",
+        "  Remaining     : 00:27:37",
+        "  PCAP file     : exp-011-run03.pcap",
+        "  Metadata file : exp-011-run03.json",
+        "",
+        "─── Current Activity ─────────────────────────────",
+        "",
+        "  Active benign : camera_stream_low",
+        "  Active attack : none",
+        "  Next event    : SYN Flood -> smartplug01 @10:20:00",
+        "",
+        "─── Health ───────────────────────────────────────",
+        "",
+        "  [capture: OK]    [logger: OK]    [clock sync: OK]",
+        "",
+        "─── Actions ──────────────────────────────────────",
+        "",
+        "  [Ctrl+P] Pause    [Ctrl+R] Resume    [Ctrl+X] Abort",
+    ],
+    actions=["Ctrl+P Pause", "Ctrl+R Resume", "Ctrl+X Abort"],
+)
