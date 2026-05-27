@@ -1,0 +1,31 @@
+from design.Menu import Section
+
+ATTACKS_SECTION = Section(
+    key="attacks",
+    label="Attack Library",
+    hint="Configura módulo de ataque: origen, objetivo, duración y taxonomía MITRE. Enter=configurar · V=validar",
+    content_lines=[
+        "─── Attack Modules ───────────────────────────────",
+        "",
+        "  > DoS HTTP Flood",
+        "    Port Scan",
+        "    ARP Spoof / MitM",
+        "    SYN Flood",
+        "    Brute Force HTTP",
+        "",
+        "─── Selected: DoS HTTP Flood ─────────────────────",
+        "",
+        "  Source node   : kalivm",
+        "  Target node   : camera01",
+        "  Duration      : 00:03:00",
+        "  Intensity     : medium",
+        "  Label         : DoS",
+        "  MITRE ref     : T1498.001",
+        "",
+        "─── Actions ──────────────────────────────────────",
+        "",
+        "  [Enter] Configure    [A] Add module    [D] Delete",
+        "  [V] Validate params",
+    ],
+    actions=["Enter Configure", "A Add module", "D Delete", "V Validate params"],
+)
