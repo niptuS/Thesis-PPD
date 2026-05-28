@@ -1,0 +1,21 @@
+# SH-DATASET metadata export
+# csv_version: 1.0
+# schema_version: 1.0
+# experiment_id: EXP-2026-05-011
+# environment: SmartHomeLab-v1
+# scenario_name: SmartHome Mixed Traffic Morning
+# start_time: 2026-05-11T10:00:00.000000Z
+# planned_duration_s: 2700
+# generated_at: 2026-05-11T10:45:02.000000Z
+# pcap_file: EXP-2026-05-011-run01.pcap
+# orchestrator_version: 1.0.0
+row_id,experiment_id,run_id,absolute_timestamp,relative_timestamp_s,event_kind,source_node,source_ip,source_mac,target_node,target_ip,target_mac,protocol,action,label,mitre_technique,mitre_subtechnique,attack_intensity,benign_profile,duration_s,notes,row_checksum
+1,EXP-2026-05-011,run01,2026-05-11T10:00:00.000000Z,0.0,system,orchestrator,0.0.0.0,,,,,,scenario_start,system,,,,,0.0,scenario initialized,a1b2c3d4e5f6a7b8
+2,EXP-2026-05-011,run01,2026-05-11T10:00:03.000000Z,3.0,benign,camera01,192.168.1.30,AA:BB:CC:DD:EE:03,,,,RTSP,stream_start,benign,,,,camera_stream_low,2700.0,baseline warmup,b2c3d4e5f6a7b8c9
+3,EXP-2026-05-011,run01,2026-05-11T10:00:05.000000Z,5.0,benign,smartplug01,192.168.1.20,AA:BB:CC:DD:EE:02,,,,MQTT,telemetry_heartbeat,benign,,,,smartplug_telemetry,2700.0,30s heartbeat cycle,c3d4e5f6a7b8c9d0
+4,EXP-2026-05-011,run01,2026-05-11T10:00:07.000000Z,7.0,benign,smartbulb01,192.168.1.10,AA:BB:CC:DD:EE:01,,,,HTTP,state_update,benign,,,,bulb_state_updates,0.5,bulb on event,d4e5f6a7b8c9d0e1
+5,EXP-2026-05-011,run01,2026-05-11T10:05:00.000000Z,300.0,attack,kalivm,192.168.1.50,AA:BB:CC:DD:EE:06,camera01,192.168.1.30,AA:BB:CC:DD:EE:03,HTTP,dos_http_flood,DoS,T1498,T1498.001,medium,,180.0,attack after baseline warmup,e5f6a7b8c9d0e1f2
+6,EXP-2026-05-011,run01,2026-05-11T10:08:00.000000Z,480.0,system,orchestrator,0.0.0.0,,,,,,attack_end,system,,,,,0.0,DoS HTTP Flood ended,f6a7b8c9d0e1f2a3
+7,EXP-2026-05-011,run01,2026-05-11T10:12:00.000000Z,720.0,benign,echo01,192.168.1.40,AA:BB:CC:DD:EE:05,smartplug01,192.168.1.20,AA:BB:CC:DD:EE:02,HTTP,voice_command,benign,,,,alexa_interactions,2.0,user interaction,a7b8c9d0e1f2a3b4
+8,EXP-2026-05-011,run01,2026-05-11T10:15:00.000000Z,900.0,attack,kalivm,192.168.1.50,AA:BB:CC:DD:EE:06,smartplug01,192.168.1.20,AA:BB:CC:DD:EE:02,TCP,syn_flood,DoS,T1498,T1498.001,high,,120.0,second attack window,b8c9d0e1f2a3b4c5
+9,EXP-2026-05-011,run01,2026-05-11T10:45:00.000000Z,2700.0,system,orchestrator,0.0.0.0,,,,,,scenario_end,system,,,,,0.0,scenario completed,c9d0e1f2a3b4c5d6

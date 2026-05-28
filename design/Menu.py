@@ -24,9 +24,9 @@ from design.Menu_devices   import DEVICES_SECTION
 from design.Menu_benign    import BENIGN_SECTION
 from design.Menu_attacks   import ATTACKS_SECTION
 from design.Menu_timeline  import TIMELINE_SECTION
-from design.Menu_live      import LIVE_SECTION
 from design.Menu_logs      import LOGS_SECTION
-from design.Menu_artifacts import ARTIFACTS_SECTION
+from design.Menu_live      import build_live_section,      LIVE_SECTION
+from design.Menu_artifacts import build_artifacts_section, ARTIFACTS_SECTION
 from design.Menu_help      import HELP_SECTION
 
 SAVES_DIR   = "saves/scenarios"
@@ -394,20 +394,28 @@ def _file_prompt_overlay(stdscr, default: str) -> str:
 class MenuApp:
 
     def __init__(self) -> None:
-        self.selected_idx:  int  = 0
-        self.focus:         str  = FOCUS_SIDEBAR
-        self.field_cursor:  int  = 0
-        self.status:        str  = "IDLE"
-        self.capture:       str  = "READY"
+        self.selected_idx: int  = 0
+        self.focus: str  = FOCUS_SIDEBAR
+        self.field_cursor: int  = 0
+        self.status: str  = "IDLE"
+        self.capture: str  = "READY"
         self.experiment_id: str  = "NEW"
-        self.running:       bool = True
-        self.active_config        = _empty_config()
-        self._status_msg:   str  = ""
-        self._status_kind:  str  = "hint"
-        self._editing_line: int  = -1   # line_idx actualmente en edición inline
-        self._inline_buf:   list = []   # buffer de chars del campo en edición
-        self._stdscr              = None
+        self.running: bool = True
+        self.active_config = _empty_config()
+        self._status_msg: str  = ""
+        self._status_kind: str  = "hint"
+        self._editing_line: int  = -1
+        self._inline_buf: list = []
+        self._stdscr = None
         self._action_cb: Optional[Callable[[str, str], None]] = None
+        self._manager: object   = None
+        self._scenario_start: object   = None
+        self._planned_duration_s: int      = 0
+        self._next_event_label: str      = "—"
+        self._active_benign: str      = "—"
+        self._active_attack: str      = "—"
+        self._selected_artifact: str      = ""
+        self._artifact_cursor: int = 0
 
     def set_action_callback(self, cb: Callable[[str, str], None]) -> None:
         self._action_cb = cb
@@ -427,6 +435,35 @@ class MenuApp:
 
     def _section_key(self) -> str:
         return self._section().key
+
+    def update_runtime_sections(
+        self,
+        manager=None,
+        scenario_start=None,
+        planned_duration_s: int = 0,
+        next_event_label: str = "—",
+        active_benign: str = "—",
+        active_attack: str = "—",
+        selected_artifact: str = "",
+    ) -> None:
+        live_sec = build_live_section(
+            manager            = manager,
+            scenario_start     = scenario_start,
+            planned_duration_s = planned_duration_s,
+            next_event_label   = next_event_label,
+            active_benign      = active_benign,
+            active_attack      = active_attack,
+        )
+        art_sec = build_artifacts_section(
+            manager            = manager,
+            selected_artifact  = selected_artifact,
+            cursor_idx         = self.field_cursor if self._section_key() == "artifacts" else 0,
+        )
+        for i, sec in enumerate(SECTIONS):
+            if sec.key == "live":
+                SECTIONS[i] = live_sec
+            elif sec.key == "artifacts":
+                SECTIONS[i] = art_sec
 
     def _refresh_scenario_section(self) -> None:
         if self.active_config is None:
@@ -484,6 +521,16 @@ class MenuApp:
 
     def _render(self, stdscr) -> None:
         stdscr.clear()
+        if hasattr(self, "_manager"):
+            self.update_runtime_sections(
+                manager            = self._manager,
+                scenario_start     = self._scenario_start,
+                planned_duration_s = self._planned_duration_s,
+                next_event_label   = self._next_event_label,
+                active_benign      = self._active_benign,
+                active_attack      = self._active_attack,
+                selected_artifact  = self._selected_artifact,
+            )
         max_y, max_x = stdscr.getmaxyx()
         if max_y < 10 or max_x < 40:
             stdscr.addstr(0, 0, "Terminal too small. Min 40x10.")
@@ -518,45 +565,56 @@ class MenuApp:
         _draw_hint_bar(stdscr, hint_text, hint_kind, bottom_y)
         stdscr.refresh()
 
-    # ── key handlers ──────────────────────────────────────────────────────────
-
     def _handle_key(self, key: int) -> None:
-        self._status_msg  = ""
-        self._status_kind = "hint"
+        section = SECTIONS[self.selected_idx]
 
-        # globales siempre activos
-        if key == 15:   # Ctrl+O
-            self._do_load_prompt()
-            return
-        if key == 19:   # Ctrl+S
-            self._dispatch(self._section_key(), "ctrl_s")
-            return
-        if key == 18:   # Ctrl+R
-            self._do_run()
-            return
-        if key == 16:   # Ctrl+P
-            self.status  = "PAUSED"
-            self.capture = "PAUSED"
-            self.set_status("Execution paused.", "warn")
-            self._dispatch(self._section_key(), "ctrl_p")
-            return
-        if key == 24:   # Ctrl+X
-            self.status  = "IDLE"
-            self.capture = "READY"
-            self.set_status("Execution aborted.", "warn")
-            self._dispatch(self._section_key(), "ctrl_x")
-            return
-        if key == 12:   # Ctrl+L
-            self._jump_to("logs")
-            return
-
-        if self.focus == FOCUS_SIDEBAR:
+        if key == 19:    self._dispatch(section.key, "ctrl_s")
+        elif key == 18:  self._do_run()
+        elif key == 16:  self._do_pause()
+        elif key == 24:  self._do_abort()
+        elif key == 12:  self._jump_to("logs")
+        elif key == 15:  self._do_load_prompt()
+        elif self.focus == FOCUS_SIDEBAR:
             self._key_sidebar(key)
+        elif self.focus == FOCUS_PANEL:
+            if section.key == "artifacts":
+                self._handle_artifacts_key(key)
+            else:
+                self._key_panel(key)
+
+    def _handle_enter(self, section) -> None:
+        if section.key == "artifacts":
+            self._artifacts_show_info()
         else:
-            self._key_panel(key)
+            self._dispatch(section.key, "enter")
+
+    def _handle_artifacts_key(self, key: int) -> None:
+        artifact_keys: dict[int, Callable[[], None]] = {
+            curses.KEY_UP:   lambda: self._artifacts_move(-1),
+            curses.KEY_DOWN: lambda: self._artifacts_move(1),
+            ord("e"):        self._artifacts_export,
+            ord("E"):        self._artifacts_export,
+            ord("c"):        self._artifacts_checksum,
+            ord("C"):        self._artifacts_checksum,
+        }
+        action = artifact_keys.get(key)
+        if action:
+            action()
+
+    def _handle_generic_key(self, key: int, section) -> None:
+        char_actions: dict[str, str] = {
+            "a": "add",    "d": "delete", "e": "edit",
+            "r": "remove", "t": "tag",    "c": "clone",
+            "n": "new",    "m": "move",   "x": "delete_event",
+            "v": "validate", "f": "filter", "/": "search",
+        }
+        ch = chr(key).lower() if 0 < key < 128 else ""
+        if ch in char_actions:
+            self._dispatch(section.key, char_actions[ch])
+        elif key == ord(" "):
+            self._dispatch(section.key, "toggle")
 
     def _handle_inline_key(self, key: int) -> None:
-        """Maneja input mientras un campo está en edición inline."""
         if key in (curses.KEY_ENTER, 10, 13):
             self._commit_inline()
         elif key == 27:
@@ -695,6 +753,84 @@ class MenuApp:
     def _dispatch(self, section_key: str, action: str) -> None:
         if self._action_cb is not None:
             self._action_cb(section_key, action)
+
+    def _artifacts_move(self, delta: int) -> None:
+        section  = self._get_section("artifacts")
+        max_idx  = max(0, len(section.field_map) - 1)
+        new_idx  = max(0, min(max_idx, self._artifact_cursor + delta))
+        if new_idx != self._artifact_cursor:
+            self._artifact_cursor = new_idx
+            if section.field_map:
+                self._selected_artifact = section.field_map[new_idx].label
+            self._refresh_artifact_section()
+
+    def _artifacts_show_info(self) -> None:
+        section = self._get_section("artifacts")
+        if not section.field_map:
+            self._set_status("Sin archivos disponibles.", "warn")
+            return
+        idx  = min(self._artifact_cursor, len(section.field_map) - 1)
+        name = section.field_map[idx].label
+        self._selected_artifact = name
+        self._refresh_artifact_section()
+        self._set_status(f"Mostrando info: {name}", "ok")
+
+    def _artifacts_export(self) -> None:
+        if not self._selected_artifact:
+            self._set_status("Selecciona un archivo primero (↑↓ + Enter).", "warn")
+            return
+        src = self._resolve_artifact_path(self._selected_artifact)
+        if src is None or not src.exists():
+            self._set_status(f"Archivo no encontrado: {self._selected_artifact}", "err")
+            return
+        from pathlib import Path
+        dst = Path("exports") / src.name
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copy2(src, dst)
+        self._set_status(f"Exportado → {dst}", "ok")
+
+    def _artifacts_checksum(self) -> None:
+        if not self._selected_artifact:
+            self._set_status("Selecciona un archivo primero (↑↓ + Enter).", "warn")
+            return
+        src = self._resolve_artifact_path(self._selected_artifact)
+        if src is None or not src.exists():
+            self._set_status(f"Archivo no encontrado: {self._selected_artifact}", "err")
+            return
+        try:
+            from modules.artifacts.metadata.checksum import compute_file_checksum
+            checksum = compute_file_checksum(src)
+            self._set_status(f"SHA-256: {checksum[:32]}…", "ok")
+        except Exception as exc:
+            self._set_status(f"Error checksum: {exc}", "err")
+
+    def _resolve_artifact_path(self, name: str):
+        from pathlib import Path
+        for base in ("outputs/metadata", "outputs/pcap", "outputs"):
+            p = Path(base) / name
+            if p.exists():
+                return p
+        return None
+
+    def _refresh_artifact_section(self) -> None:
+        from design.Menu_artifacts import build_artifacts_section
+        art_sec = build_artifacts_section(
+            manager           = getattr(self, "_manager", None),
+            selected_artifact = self._selected_artifact,
+            cursor_idx        = self._artifact_cursor,
+        )
+        for i, sec in enumerate(SECTIONS):
+            if sec.key == "artifacts":
+                SECTIONS[i] = art_sec
+                break
+
+    def _get_section(self, key: str) -> Section:
+        return next((s for s in SECTIONS if s.key == key), SECTIONS[0])
+
+    def _set_status(self, message: str, kind: str = "ok") -> None:
+        self._status_msg  = message
+        self._status_kind = kind
 
     def stop(self) -> None:
         self.running = False

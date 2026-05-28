@@ -1,0 +1,1 @@
+from modules.artifacts.artifact_manager import ArtifactManager
