@@ -6,7 +6,7 @@
 	"start_time": "10:00:00",
 	"planned_duration": "00:45:00",
 	"output": {
-		"folder": "./data/experiments/exp-011",
+		"folder": "./saves/scenarios/exp-011",
 		"capture_enabled": true,
 		"export_pcap": true,
 		"export_metadata": true,
