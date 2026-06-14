@@ -1,0 +1,30 @@
+[MAIN]
+jobs = 0
+
+[MESSAGES CONTROL]
+disable =
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring
+    C0301,  # line-too-long (flake8 handles this)
+    C0103,  # invalid-name
+    C0415,  # import-outside-toplevel (intentional for optional deps + circular imports)
+    R0903,  # too-few-public-methods
+    R0913,  # too-many-arguments
+    R0917,  # too-many-positional-arguments
+    W0611,  # unused-import (flake8 F401 handles this)
+    W0612,  # unused-variable
+    W0613,  # unused-argument
+    W0223,  # abstract-method
+    E0401,  # import-error (optional dependencies)
+    E0611,  # no-name-in-module (old attack modules reference removed classes)
+    E1102,  # not-callable (callback pattern)
+
+[FORMAT]
+max-line-length = 120
+max-args = 10
+
+[DESIGN]
+max-attributes = 20
+max-locals = 20
+max-branches = 15

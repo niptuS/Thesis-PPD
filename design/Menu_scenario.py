@@ -1,30 +1,40 @@
-from dataclasses import dataclass, field
-from design.Menu_types import Section
+from design.models import Section, FieldMeta
 
-SCENARIO_SECTION = Section(
-    key="scenario",
-    label="Scenario Editor",
-    hint="Define identidad, duración y salidas del experimento. Enter=editar · A=agregar · D=eliminar · Ctrl+S=guardar",
-    content_lines=[
+
+def build_scenario_section(config, **kwargs) -> Section:
+    lines = [
         "─── Scenario Configuration ───────────────────────",
         "",
-        "  Name              : SmartHome Mixed Traffic Morning",
-        "  Experiment ID     : EXP-2026-05-011",
-        "  Environment       : SmartHomeLab-v1",
-        "  Start time        : 2026-05-11 10:00:00",
-        "  Planned duration  : 00:45:00",
-        "  Output folder     : /data/experiments/exp-011",
-        "",
-        "─── Output settings ──────────────────────────────",
-        "",
-        "  Capture enabled   : [x]",
-        "  Metadata export   : [x] JSON",
-        "  PCAP export       : [x]",
-        "",
-        "─── Actions ──────────────────────────────────────",
-        "",
-        "  [Enter] Edit field    [A] Add field    [D] Delete field",
-        "  [Ctrl+S] Save         [Esc] Back to Home",
-    ],
-    actions=["Enter Edit field", "A Add field", "D Delete field", "Ctrl+S Save", "Esc Back"],
+        f"  Name              : {config.name}",
+        f"  Experiment ID     : {config.experiment_id}",
+        f"  Environment       : {config.environment}",
+        f"  Start time        : {config.start_time}",
+        f"  Planned duration  : {config.planned_duration}",
+    ]
+
+    field_map = [
+        FieldMeta("name", "Name", True, 2),
+        FieldMeta("experiment_id", "Experiment ID", True, 3),
+        FieldMeta("environment", "Environment", True, 4),
+        FieldMeta("start_time", "Start time", True, 5),
+        FieldMeta("planned_duration", "Planned duration", True, 6),
+    ]
+
+    return Section(
+        key="scenario", label="Scenario Editor",
+        hint="↑↓=campo · Enter=editar · Ctrl+S=guardar · Ctrl+O=cargar",
+        content_lines=lines, actions=[], field_map=field_map,
+    )
+
+
+SCENARIO_SECTION = build_scenario_section(
+    type("_Cfg", (), {
+        "name": "", "experiment_id": "NEW", "environment": "",
+        "start_time": "00:00:00", "planned_duration": "00:30:00",
+        "output": type("_Out", (), {
+            "folder": "./data", "capture_enabled": True,
+            "export_metadata": True, "export_pcap": True, "export_benign": True,
+        })(),
+        "attacker": type("_Atk", (), {"mode": "local", "ip": "", "ssh_user": "kali", "ssh_port": 22, "ssh_key": ""})(),
+    })()
 )
