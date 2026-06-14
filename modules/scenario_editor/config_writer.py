@@ -5,8 +5,10 @@ from pathlib import Path
 
 from modules.scenario_editor.config_schema import ScenarioConfig
 
+
 class ConfigWriteError(Exception):
     pass
+
 
 def save_scenario(config: ScenarioConfig, path: str | Path) -> None:
     output_path = Path(path)

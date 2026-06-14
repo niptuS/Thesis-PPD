@@ -12,7 +12,7 @@ _DEFAULT_REGISTRY_PATH = Path("saves/devices/registry.json")
 class DeviceRegistry:
 
     def __init__(self, path: Path = _DEFAULT_REGISTRY_PATH) -> None:
-        self._path:    Path                  = path
+        self._path: Path = path
         self._devices: dict[str, DeviceEntry] = {}
 
     def add(self, device: DeviceEntry) -> None:

@@ -1,165 +1,311 @@
-import logging
-import socket
-import ipaddress
-from concurrent.futures import ThreadPoolExecutor, as_completed
+"""
+Device Fingerprinting — SH-DATASET
+Infiere el tipo de dispositivo IoT a partir de vendor (MAC OUI),
+puertos/servicios abiertos (nmap -sV) y service types (mDNS).
+"""
+from __future__ import annotations
 
-from modules.devices.device_schema import (
-    DeviceEntry,
-    PortInfo,
-    IOT_PORT_MAP,
-    OUI_VENDOR_MAP,
-    IOT_TAG_HEURISTICS,
-)
-
-logger = logging.getLogger(__name__)
-
-_CONNECT_TIMEOUT: float = 1.0
-_BANNER_TIMEOUT:  float = 1.5
-_MAX_WORKERS:     int   = 20
-_HTTP_REQUEST:    bytes = b"GET / HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+import re
+import subprocess
+from dataclasses import dataclass, field
 
 
-def _lookup_vendor(mac: str) -> str:
-    if not mac:
+# ── resultado del fingerprint ───────────────────────────────────────
+@dataclass
+class DeviceFingerprint:
+    device_type: str = "unknown"
+    confidence: str = "low"
+    protocols: list[str] = field(default_factory=list)
+    open_ports: list[int] = field(default_factory=list)
+    services: list[str] = field(default_factory=list)
+    os_hint: str = ""
+    reason: str = ""
+    suggested_role: str = "unknown"
+    suggested_tags: str = ""
+
+
+# ── labels legibles ─────────────────────────────────────────────────
+_TYPE_LABELS: dict[str, str] = {
+    "camera": "📷 Cámara IP",
+    "bulb": "💡 Ampolleta",
+    "plug": "🔌 Enchufe",
+    "speaker": "🔊 Parlante",
+    "hub": "🏠 Hub/Bridge",
+    "tv": "📺 Smart TV",
+    "sensor": "📡 Sensor IoT",
+    "router": "🌐 Router",
+    "pc": "💻 PC",
+    "attacker": "⚔ Atacante",
+    "unknown": "❓ Desconocido",
+}
+
+
+def get_type_label(device_type: str) -> str:
+    return _TYPE_LABELS.get(device_type, f"❓ {device_type}")
+
+
+# ── mapeo tipo → rol sugerido ───────────────────────────────────────
+_TYPE_TO_ROLE: dict[str, str] = {
+    "camera": "target",
+    "bulb": "target",
+    "plug": "target",
+    "sensor": "target",
+    "speaker": "benign",
+    "hub": "benign",
+    "tv": "benign",
+    "router": "benign",
+    "pc": "benign",
+    "attacker": "attacker",
+    "unknown": "unknown",
+}
+
+
+# ── mapeo vendor → tipo probable ────────────────────────────────────
+_VENDOR_MAP: dict[str, tuple[str, str]] = {
+    "philips": ("bulb", "medium"),
+    "signify": ("bulb", "medium"),
+    "lifx": ("bulb", "high"),
+    "ikea": ("bulb", "medium"),
+    "hikvision": ("camera", "high"),
+    "dahua": ("camera", "high"),
+    "reolink": ("camera", "high"),
+    "axis": ("camera", "high"),
+    "amcrest": ("camera", "high"),
+    "wyze": ("camera", "medium"),
+    "ring": ("camera", "medium"),
+    "tp-link": ("plug", "medium"),
+    "kasa": ("plug", "medium"),
+    "tapo": ("plug", "medium"),
+    "meross": ("plug", "medium"),
+    "wemo": ("plug", "medium"),
+    "belkin": ("plug", "medium"),
+    "sonof": ("plug", "medium"),
+    "tuya": ("plug", "low"),
+    "amazon": ("speaker", "medium"),
+    "echo": ("speaker", "high"),
+    "google": ("speaker", "medium"),
+    "sonos": ("speaker", "high"),
+    "apple": ("hub", "low"),
+    "samsung": ("tv", "low"),
+    "lg electro": ("tv", "medium"),
+    "roku": ("tv", "medium"),
+    "xiaomi": ("sensor", "low"),
+    "aqara": ("sensor", "medium"),
+    "espressi": ("sensor", "medium"),
+    "raspberry": ("hub", "medium"),
+    "vmware": ("attacker", "high"),
+    "virtualbox": ("attacker", "high"),
+    "parallels": ("attacker", "medium"),
+    "qemu": ("attacker", "medium"),
+}
+
+# ── mapeo puerto → tipo ─────────────────────────────────────────────
+_PORT_MAP: dict[int, tuple[str, str]] = {
+    554: ("camera", "high"),
+    8554: ("camera", "high"),
+    1883: ("sensor", "medium"),
+    8883: ("sensor", "medium"),
+    8008: ("speaker", "medium"),
+    8443: ("speaker", "medium"),
+    1400: ("speaker", "high"),
+    9197: ("bulb", "medium"),
+    5683: ("sensor", "medium"),
+}
+
+# ── mapeo mDNS service → tipo ───────────────────────────────────────
+_MDNS_MAP: dict[str, tuple[str, str]] = {
+    "_hap._tcp": ("unknown", "medium"),
+    "_googlecast._tcp": ("speaker", "high"),
+    "_airplay._tcp": ("speaker", "medium"),
+    "_raop._tcp": ("speaker", "medium"),
+    "_sonos._tcp": ("speaker", "high"),
+    "_mqtt._tcp": ("sensor", "medium"),
+    "_coap._udp": ("sensor", "medium"),
+    "_hue._tcp": ("bulb", "high"),
+    "_axis-video._tcp": ("camera", "high"),
+    "_amzn-wplay._tcp": ("speaker", "high"),
+    "_spotify-connect._tcp": ("speaker", "medium"),
+    "_smb._tcp": ("pc", "medium"),
+    "_ssh._tcp": ("pc", "medium"),
+    "_rdp._tcp": ("pc", "medium"),
+}
+
+# ── OUI prefix → vendor (top IoT) ──────────────────────────────────
+_OUI_MAP: dict[str, str] = {
+    "00:17:88": "Philips",
+    "EC:B5:FA": "Philips",
+    "94:B9:7E": "TP-Link",
+    "50:C7:BF": "TP-Link",
+    "B0:BE:76": "TP-Link",
+    "E8:48:B8": "TP-Link",
+    "54:AF:97": "TP-Link",
+    "6C:5A:B0": "TP-Link",
+    "00:1E:8F": "Meross",
+    "48:E1:E9": "Hikvision",
+    "C0:56:E3": "Hikvision",
+    "28:57:BE": "Hikvision",
+    "A4:CF:12": "Espressi",
+    "DC:4F:22": "Espressi",
+    "24:6F:28": "Espressi",
+    "30:AE:A4": "Espressi",
+    "CC:50:E3": "Espressi",
+    "40:F5:20": "Google",
+    "F4:F5:D8": "Google",
+    "F8:0F:F9": "Google",
+    "44:D9:E7": "Amazon",
+    "A0:02:DC": "Amazon",
+    "FC:65:DE": "Amazon",
+    "14:91:82": "Belkin",
+    "58:EF:68": "Belkin",
+    "B8:27:EB": "Raspberry",
+    "DC:A6:32": "Raspberry",
+    "E4:5F:01": "Raspberry",
+    "00:50:56": "VMware",
+    "00:0C:29": "VMware",
+    "08:00:27": "VirtualBox",
+    "54:27:1E": "Sonos",
+    "48:A6:B8": "Sonos",
+    "B4:E6:2A": "LG Electro",
+    "00:1A:11": "Google",
+}
+
+_CONFIDENCE_ORDER = {"low": 0, "medium": 1, "high": 2}
+
+
+# ── lookup vendor desde MAC OUI ─────────────────────────────────────
+
+def _oui_lookup(mac: str) -> str:
+    """Intenta resolver el vendor desde los primeros 3 octetos del MAC."""
+    if not mac or len(mac) < 8:
         return ""
-    oui = mac.lower()[:8]
-    return OUI_VENDOR_MAP.get(oui, "")
+    prefix = mac[:8].upper()
+    return _OUI_MAP.get(prefix, "")
 
 
-def _probe_port(ip: str, port: int) -> PortInfo | None:
-    try:
-        with socket.create_connection((ip, port), timeout=_CONNECT_TIMEOUT) as sock:
-            protocol = IOT_PORT_MAP.get(port, "unknown")
-            banner   = ""
+# ── fingerprint principal ───────────────────────────────────────────
 
-            if port in (80, 8080, 8443, 9090):
-                try:
-                    sock.settimeout(_BANNER_TIMEOUT)
-                    sock.sendall(_HTTP_REQUEST.replace(b"{host}", ip.encode()))
-                    raw = sock.recv(512).decode("utf-8", errors="replace")
-                    first_line = raw.split("\r\n")[0] if raw else ""
-                    server_hdr = next(
-                        (
-                            ln.split(":", 1)[1].strip()
-                            for ln in raw.split("\r\n")
-                            if ln.lower().startswith("server:")
-                        ),
-                        "",
-                    )
-                    banner = server_hdr or first_line[:80]
-                except (OSError, UnicodeDecodeError):
-                    pass
+def fingerprint_device(
+    ip: str = "",
+    mac: str = "",
+    vendor: str = "",
+    open_ports: list[int] | None = None,
+    services: list[str] | None = None,
+    mdns_types: list[str] | None = None,
+) -> DeviceFingerprint:
+    """
+    Combina heurísticas de vendor, puertos, servicios y mDNS
+    para inferir el tipo de dispositivo.
+    """
+    # try OUI lookup if vendor not provided
+    if not vendor and mac:
+        vendor = _oui_lookup(mac)
 
-            return PortInfo(port=port, protocol=protocol, banner=banner)
+    candidates: list[tuple[str, str, str]] = []
+    detected_protocols: list[str] = []
 
-    except (OSError, ConnectionRefusedError, TimeoutError):
-        return None
-
-
-def _scan_ports(ip: str) -> list[PortInfo]:
-    open_ports: list[PortInfo] = []
-    with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as executor:
-        futures = {
-            executor.submit(_probe_port, ip, port): port
-            for port in IOT_PORT_MAP
-        }
-        for future in as_completed(futures):
-            result = future.result()
-            if result is not None:
-                open_ports.append(result)
-    return sorted(open_ports, key=lambda p: p.port)
-
-
-def _build_tags(vendor: str, open_ports: list[PortInfo], banner: str) -> list[str]:
-    tags: set[str] = set()
-
-    if vendor in IOT_TAG_HEURISTICS:
-        tags.update(IOT_TAG_HEURISTICS[vendor])
-
-    port_numbers = {p.port for p in open_ports}
-    if 1883 in port_numbers or 8883 in port_numbers:
-        tags.add("mqtt")
-    if 554 in port_numbers:
-        tags.add("camera")
-    if 5683 in port_numbers:
-        tags.add("coap")
-
-    banner_lower = banner.lower()
-    iot_banner_keywords: dict[str, str] = {
-        "shelly":      "smart-plug",
-        "hikvision":   "camera",
-        "dahua":       "camera",
-        "tasmota":     "esp-device",
-        "esphome":     "esp-device",
-        "philips hue": "bulb",
-        "tplink":      "smart-plug",
-        "wemo":        "smart-plug",
-        "ring":        "camera",
-        "nest":        "thermostat",
-    }
-    for keyword, tag in iot_banner_keywords.items():
-        if keyword in banner_lower:
-            tags.add(tag)
-
-    return sorted(tags)
-
-
-def _compute_iot_score(
-    vendor:     str,
-    open_ports: list[PortInfo],
-    tags:       list[str],
-) -> int:
-    score = 0
+    # 1. vendor match
     if vendor:
-        score += 35 if vendor in OUI_VENDOR_MAP.values() else 0
+        vendor_lower = vendor.lower()
+        for key, (dtype, conf) in _VENDOR_MAP.items():
+            if key in vendor_lower:
+                candidates.append((dtype, conf, f"vendor={vendor}"))
+                break
 
-    port_numbers = {p.port for p in open_ports}
-    iot_ports    = set(IOT_PORT_MAP.keys()) - {80, 443, 8080, 8443}
-    matched_iot  = port_numbers & iot_ports
-    score += min(len(matched_iot) * 15, 40)
+    # 2. port match
+    if open_ports:
+        for port in open_ports:
+            if port in _PORT_MAP:
+                dtype, conf = _PORT_MAP[port]
+                candidates.append((dtype, conf, f"port={port}"))
 
-    score += min(len(tags) * 5, 25)
-    return min(score, 100)
+    # 3. mDNS match
+    if mdns_types:
+        for mtype in mdns_types:
+            mtype_lower = mtype.lower()
+            for key, (dtype, conf) in _MDNS_MAP.items():
+                if key in mtype_lower:
+                    candidates.append((dtype, conf, f"mdns={mtype}"))
+                    detected_protocols.append(mtype)
+                    break
 
+    # resolve best candidate
+    if not candidates:
+        return DeviceFingerprint(
+            device_type="unknown",
+            confidence="low",
+            open_ports=open_ports or [],
+            services=services or [],
+            protocols=detected_protocols,
+            reason="sin datos suficientes",
+            suggested_role="unknown",
+            suggested_tags="",
+        )
 
-def fingerprint_device(device: DeviceEntry) -> DeviceEntry:
-    logger.debug("fingerprinting %s", device.ip)
+    def _score(c):
+        dtype, conf, _ = c
+        return (0 if dtype == "unknown" else 1, _CONFIDENCE_ORDER.get(conf, 0))
 
-    vendor     = _lookup_vendor(device.mac)
-    open_ports = _scan_ports(device.ip)
-    all_banners = " ".join(p.banner for p in open_ports)
-    tags       = _build_tags(vendor, open_ports, all_banners)
-    iot_score  = _compute_iot_score(vendor, open_ports, tags)
+    candidates.sort(key=_score, reverse=True)
+    best_type, best_conf, best_reason = candidates[0]
 
-    device.vendor     = vendor
-    device.open_ports = open_ports
-    device.tags       = tags
-    device.iot_score  = iot_score
+    # aggregate protocols
+    if open_ports:
+        if 80 in open_ports or 443 in open_ports:
+            detected_protocols.append("HTTP")
+        if 554 in open_ports or 8554 in open_ports:
+            detected_protocols.append("RTSP")
+        if 1883 in open_ports or 8883 in open_ports:
+            detected_protocols.append("MQTT")
+        if 22 in open_ports:
+            detected_protocols.append("SSH")
+        if 5353 in open_ports:
+            detected_protocols.append("mDNS")
 
-    logger.info(
-        "fingerprint done %s vendor=%r score=%d tags=%s",
-        device.ip, vendor, iot_score, tags,
+    # suggested role and tags
+    role = _TYPE_TO_ROLE.get(best_type, "unknown")
+    tags_parts = [best_type]
+    if vendor:
+        tags_parts.append(vendor.lower().split()[0])
+    suggested_tags = " ".join(tags_parts)
+
+    return DeviceFingerprint(
+        device_type=best_type,
+        confidence=best_conf,
+        open_ports=open_ports or [],
+        services=services or [],
+        protocols=list(dict.fromkeys(detected_protocols)),
+        reason=best_reason,
+        suggested_role=role,
+        suggested_tags=suggested_tags,
     )
-    return device
 
 
-def fingerprint_all(
-    devices:     list[DeviceEntry],
-    min_score:   int = 0,
-    max_workers: int = 8,
-) -> list[DeviceEntry]:
-    results: list[DeviceEntry] = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(fingerprint_device, dev): dev
-            for dev in devices
-        }
-        for future in as_completed(futures):
-            try:
-                dev = future.result()
-                if dev.iot_score >= min_score:
-                    results.append(dev)
-            except (OSError, ValueError) as exc:
-                logger.warning("fingerprint error: %s", exc)
+# ── nmap service scan (opcional, más lento) ─────────────────────────
 
-    return sorted(results, key=lambda d: d.iot_score, reverse=True)
+def nmap_service_scan(ip: str, timeout: int = 15) -> tuple[list[int], list[str]]:
+    """
+    Ejecuta nmap -sV sobre un IP.
+    Retorna (open_ports, services).
+    """
+    try:
+        result = subprocess.run(
+            ["nmap", "-sV", "--top-ports", "20", "-T4", ip],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return [], []
+
+    ports: list[int] = []
+    services: list[str] = []
+    for line in result.stdout.splitlines():
+        m = re.match(r"\s*(\d+)/\w+\s+open\s+(\S+)\s*(.*)", line)
+        if m:
+            ports.append(int(m.group(1)))
+            svc = m.group(2)
+            version = m.group(3).strip()
+            services.append(f"{svc} {version}".strip() if version else svc)
+
+    return ports, services

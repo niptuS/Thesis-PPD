@@ -15,10 +15,11 @@ from modules.artifacts.metadata.schema import (
 
 logger = logging.getLogger(__name__)
 
+
 class MetadataCsvWriter:
 
     def __init__(self, output_path: str | Path) -> None:
-        self._path    = Path(output_path)
+        self._path = Path(output_path)
         self._row_buf: list[MetadataRow] = []
         self._header: ExperimentHeader | None = None
 

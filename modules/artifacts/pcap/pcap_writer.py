@@ -10,29 +10,31 @@ logger = logging.getLogger(__name__)
 
 _TCPDUMP_BIN = "tcpdump"
 
+
 class PcapCaptureError(RuntimeError):
     pass
+
 
 class PcapWriter:
 
     def __init__(
         self,
-        output_path:       str | Path,
+        output_path: str | Path,
         capture_interface: str,
-        experiment_id:     str,
-        run_id:            str,
-        snaplen:           int = 65535,
-        extra_filter:      str = "",
+        experiment_id: str,
+        run_id: str,
+        snaplen: int = 65535,
+        extra_filter: str = "",
     ) -> None:
-        self._path      = Path(output_path)
+        self._path = Path(output_path)
         self._interface = capture_interface
-        self._snaplen   = snaplen
-        self._filter    = extra_filter
-        self._exp_id    = experiment_id
-        self._run_id    = run_id
-        self._process:  subprocess.Popen | None = None
-        self._thread:   threading.Thread | None = None
-        self._running:  bool = False
+        self._snaplen = snaplen
+        self._filter = extra_filter
+        self._exp_id = experiment_id
+        self._run_id = run_id
+        self._process: subprocess.Popen | None = None
+        self._thread: threading.Thread | None = None
+        self._running: bool = False
 
     @property
     def interface(self) -> str:
@@ -67,13 +69,13 @@ class PcapWriter:
         try:
             self._process = subprocess.Popen(
                 cmd,
-                stdout = subprocess.DEVNULL,
-                stderr = subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
             )
             self._running = True
-            self._thread  = threading.Thread(
-                target = self._monitor_stderr,
-                daemon = True,
+            self._thread = threading.Thread(
+                target=self._monitor_stderr,
+                daemon=True,
             )
             self._thread.start()
             logger.info(

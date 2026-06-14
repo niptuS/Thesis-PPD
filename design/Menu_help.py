@@ -1,4 +1,4 @@
-from design.Menu_types import Section
+from design.models import Section
 
 HELP_SECTION = Section(
     key="help",
@@ -25,9 +25,8 @@ HELP_SECTION = Section(
         "─── Recommended Flow ─────────────────────────────",
         "",
         "  1. Scenario Editor   2. Devices",
-        "  3. Benign Profiles   4. Attack Library",
-        "  5. Timeline          6. Live Execution",
-        "  7. Artifacts",
+        "  3. Attack Library    4. Timeline",
+        "  5. Live Execution    6. Artifacts",
     ],
     actions=["Esc Back"],
 )

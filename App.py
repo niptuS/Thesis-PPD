@@ -1,10 +1,11 @@
 import sys
 from pathlib import Path
 
-from design.Menu import run_menu, MenuApp, SAVES_DIR, OUTPUT_META, OUTPUT_PCAP
+from design.Menu import MenuApp, SAVES_DIR, OUTPUT_META, OUTPUT_PCAP
 from modules.scenario_editor import load_scenario, save_scenario
 from modules.scenario_editor.config_loader import ConfigLoadError
 from modules.scenario_editor.config_writer import ConfigWriteError
+
 
 def _build_handler(app: MenuApp) -> callable:
 
@@ -37,6 +38,7 @@ def _build_handler(app: MenuApp) -> callable:
 
     return action_handler
 
+
 def _handle_load(app: MenuApp, file_path: str) -> None:
     path = Path(file_path)
     if not path.exists():
@@ -53,6 +55,7 @@ def _handle_load(app: MenuApp, file_path: str) -> None:
     except ConfigLoadError as exc:
         app.set_status(f"Load error: {exc}", "err")
 
+
 def _handle_save(app: MenuApp) -> None:
     if app.active_config is None:
         app.set_status("Nothing to save. Load a scenario first (Ctrl+O).", "err")
@@ -65,6 +68,7 @@ def _handle_save(app: MenuApp) -> None:
         app.set_status(f"Saved: {output_path}", "ok")
     except ConfigWriteError as exc:
         app.set_status(f"Save error: {exc}", "err")
+
 
 def main() -> None:
     print("Starting SH-DATASET Orchestrator...")
@@ -87,6 +91,7 @@ def main() -> None:
     print(f"\nSession ended. Status: {app.status} | Capture: {app.capture}")
     if app.active_config:
         print(f"Last scenario: {app.active_config.experiment_id} — {app.active_config.name}")
+
 
 if __name__ == "__main__":
     main()

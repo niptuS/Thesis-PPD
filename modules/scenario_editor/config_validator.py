@@ -2,15 +2,16 @@ from __future__ import annotations
 import re
 from modules.scenario_editor.config_schema import ScenarioConfig
 
-_TIME_RE     = re.compile(r"^\d{2}:\d{2}:\d{2}$")
+_TIME_RE = re.compile(r"^\d{2}:\d{2}:\d{2}$")
 _DURATION_RE = re.compile(r"^\d{2}:\d{2}:\d{2}$")
-_IP_RE       = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
-_MAC_RE      = re.compile(r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
-_EXP_ID_RE   = re.compile(r"^EXP-\d{4}-\d{2}-\d{3,}$")
+_IP_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
+_MAC_RE = re.compile(r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
+_EXP_ID_RE = re.compile(r"^EXP-\d{4}-\d{2}-\d{3,}$")
 
-_VALID_ROLES      = {"target", "benign", "attacker"}
+_VALID_ROLES = {"target", "benign", "attacker"}
 _VALID_INTENSITIES = {"low", "medium", "high"}
 _VALID_EVENT_TYPES = {"benign", "attack"}
+
 
 def validate_scenario(config: ScenarioConfig) -> list[str]:
     errors: list[str] = []

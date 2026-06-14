@@ -1,154 +1,85 @@
+"""Artifacts — browse capture files + view PCAP/CSV contents."""
 from __future__ import annotations
+from design.models import Section
 
-from pathlib import Path
-from typing import Optional
-
-from design.Menu_types import Section, FieldMeta
-
-
-def _format_size(path: Path) -> str:
-    if not path.exists():
-        return "—"
-    size = path.stat().st_size
-    if size >= 1_073_741_824:
-        return f"{size / 1_073_741_824:.1f} GB"
-    if size >= 1_048_576:
-        return f"{size / 1_048_576:.1f} MB"
-    if size >= 1024:
-        return f"{size / 1024:.1f} KB"
-    return f"{size} B"
-
-
-def _build_file_rows(manager) -> list[tuple[str, str, str, str]]:
-    rows: list[tuple[str, str, str, str]] = []
-    if manager is None:
-        return rows
-
-    pcap = manager.pcap_path
-    if pcap:
-        status = "complete" if pcap.exists() else "pending"
-        rows.append((pcap.name, "PCAP", _format_size(pcap), status))
-
-    csv_p = manager.metadata_path
-    if csv_p:
-        status = "complete" if csv_p.exists() else "pending"
-        rows.append((csv_p.name, "metadata", _format_size(csv_p), status))
-
-    log_p = pcap.with_suffix(".log") if pcap else None
-    if log_p and log_p.exists():
-        rows.append((log_p.name, "log", _format_size(log_p), "complete"))
-
-    return rows
-
-
-def _build_detail_block(manager, selected_artifact: str) -> list[str]:
-    if manager is None or not selected_artifact:
-        return ["  (sin selección)"]
-
-    lines: list[str] = [f"─── Seleccionado: {selected_artifact} ────────────"]
-
-    csv_p = manager.metadata_path
-    if csv_p and csv_p.name == selected_artifact and csv_p.exists():
-        try:
-            from modules.artifacts.metadata.csv_reader import MetadataCsvReader
-            from modules.artifacts.metadata.checksum   import compute_file_checksum
-            reader   = MetadataCsvReader(csv_p)
-            comments = reader.read_header_comments()
-            rows     = reader.read_all()
-            checksum = compute_file_checksum(csv_p)[:16]
-            lines += [
-                "",
-                f"  Schema version : {comments.get('csv_version', '—')}",
-                f"  Experiment ID  : {comments.get('experiment_id', '—')}",
-                f"  Start time     : {comments.get('start_time', '—')}",
-                f"  Events         : {len(rows)}",
-                f"  SHA-256 (16)   : {checksum}",
-                f"  Exportable     : yes",
-            ]
-            return lines
-        except Exception:
-            pass
-
-    pcap = manager.pcap_path
-    if pcap and pcap.name == selected_artifact and pcap.exists():
-        try:
-            from modules.artifacts.metadata.checksum import compute_file_checksum
-            checksum = compute_file_checksum(pcap)[:16]
-            lines += [
-                "",
-                f"  Size           : {_format_size(pcap)}",
-                f"  SHA-256 (16)   : {checksum}",
-                f"  Exportable     : yes",
-            ]
-            return lines
-        except Exception:
-            pass
-
-    lines += ["", "  (detalles no disponibles)"]
-    return lines
+PAGE_SIZE = 18
 
 
 def build_artifacts_section(
-    manager=None,
-    selected_artifact: str = "",
-    cursor_idx: int = 0,
+    files=None, file_cursor=0,
+    view_mode="files",
+    packets=None, packet_cursor=0, packet_page=0,
+    csv_headers=None, csv_rows=None, csv_cursor=0, csv_page=0,
+    current_file="", error="",
 ) -> Section:
-    file_rows = _build_file_rows(manager)
+    content = []
 
-    col_name   = 24
-    col_type   = 10
-    col_size   = 10
+    if view_mode == "files":
+        content.append("─── Capture Files ────────────────────────────────────")
+        fl = files or []
+        if not fl:
+            content.append("  (sin archivos — ejecute un escenario primero)")
+        else:
+            content.append(f"  {'':2} {'Archivo':<35} {'Tipo':<6} {'Tamaño':<10}")
+            content.append("  " + "─" * 55)
+            for i, f in enumerate(fl):
+                marker = "►" if i == file_cursor else " "
+                content.append(f"  {marker} {f['name']:<35} {f['type']:<6} {f['size_str']}")
 
-    header_line = (
-        f"  {'Name':<{col_name}} {'Type':<{col_type}} {'Size':<{col_size}} Status"
-    )
+    elif view_mode == "packets":
+        content.append(f"─── {current_file} ─────────────────────────────")
+        pkt = packets or []
+        if error:
+            content.append(f"  Error: {error}")
+        elif not pkt:
+            content.append("  (sin paquetes)")
+        else:
+            content.append(
+                f"  {'':2} {'#':<6} {'Time':<9} {'Source':<16} {'Dest':<16} {'Proto':<7} {'Len':<6} {'Ports':<12} {'Flags'}")
+            content.append("  " + "─" * 80)
+            total = len(pkt)
+            tp = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+            pg = min(packet_page, tp - 1)
+            s, e = pg * PAGE_SIZE, min((pg + 1) * PAGE_SIZE, total)
+            for i, p in enumerate(pkt[s:e]):
+                marker = "►" if s + i == packet_cursor else " "
+                ports = f"{p.src_port}→{p.dst_port}" if p.src_port else ""
+                content.append(
+                    f"  {marker} {p.no:<6} {p.time:<9} {p.src_ip:<16} {p.dst_ip:<16} {p.protocol:<7} {p.length:<6} {ports:<12} {p.flags[:10]}")
+            if tp > 1:
+                content.append(f"  Pág {pg+1}/{tp} ({s+1}-{e} de {total})")
 
-    file_lines: list[str] = []
-    for i, (name, ftype, size, status) in enumerate(file_rows):
-        prefix = "> " if i == cursor_idx else "  "
-        file_lines.append(
-            f"{prefix}{name:<{col_name}} {ftype:<{col_type}} {size:<{col_size}} {status}"
-        )
+    elif view_mode == "csv":
+        content.append(f"─── {current_file} ─────────────────────────────")
+        headers = csv_headers or []
+        rows = csv_rows or []
+        if error:
+            content.append(f"  Error: {error}")
+        elif not rows:
+            content.append("  (sin datos)")
+        else:
+            key_cols = ["src_ip", "dst_ip", "ip.src", "ip.dst", "src_role",
+                        "dst_role", "flow_label", "Protocol", "frame.len"]
+            ci = [headers.index(k) for k in key_cols if k in headers]
+            if not ci:
+                ci = list(range(min(7, len(headers))))
+            dh = [headers[i].split(".")[-1][:13] for i in ci]
+            content.append("  " + " ".join(f"{h:<14}" for h in dh))
+            content.append("  " + "─" * (15 * len(dh)))
+            total = len(rows)
+            tp = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+            pg = min(csv_page, tp - 1)
+            s, e = pg * PAGE_SIZE, min((pg + 1) * PAGE_SIZE, total)
+            for i, row in enumerate(rows[s:e]):
+                marker = "►" if s + i == csv_cursor else " "
+                vals = [(row[j][:13] if j < len(row) else "") for j in ci]
+                content.append(f"  {marker} " + " ".join(f"{v:<14}" for v in vals))
+            if tp > 1:
+                content.append(f"  Pág {pg+1}/{tp} ({s+1}-{e} de {total})")
 
-    if not file_lines:
-        file_lines = ["  (sin archivos — ejecuta un escenario primero)"]
-
-    detail_lines = _build_detail_block(manager, selected_artifact)
-
-    lines: list[str] = [
-        "─── Archivos generados ───────────────────────────",
-        "",
-        header_line,
-        "",
-        *file_lines,
-        "",
-        *detail_lines,
-        "",
-        "─── Actions ──────────────────────────────────────",
-        "",
-        "  [Enter] Ver info    [E] Exportar    [C] Checksum",
-    ]
-
-    field_map: list[FieldMeta] = []
-    for i, (name, _, _, _) in enumerate(file_rows):
-        line_idx = 4 + i
-        field_map.append(
-            FieldMeta(
-                attr_path = f"artifact:{name}",
-                label     = name,
-                editable  = False,
-                line_idx  = line_idx,
-            )
-        )
-
-    return Section(
-        key="artifacts",
-        label="Artifacts",
-        hint="↑↓ seleccionar archivo · Enter ver info · E exportar · C checksum",
-        content_lines=lines,
-        actions=[],
-        field_map=field_map,
-    )
+    hint = "Enter=abrir · R=refrescar · ↑↓=navegar" if view_mode == "files" else "Esc=volver · ↑↓·PgUp/PgDn=navegar"
+    return Section(key="artifacts", label="Artifacts", hint=hint,
+                   content_lines=content, actions=[], field_map=[])
 
 
 ARTIFACTS_SECTION = build_artifacts_section()

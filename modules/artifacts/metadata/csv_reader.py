@@ -34,14 +34,14 @@ class MetadataCsvReader:
                 if not line.startswith(_COMMENT_PREFIX):
                     break
                 if ": " in line:
-                    _, rest  = line.split(" ", 1)
+                    _, rest = line.split(" ", 1)
                     key, val = rest.split(": ", 1)
                     meta[key] = val
         return meta
 
     def iter_rows(self) -> Generator[MetadataRow, None, None]:
         with self._path.open("r", encoding=CSV_ENCODING) as fh:
-            non_comment = (l for l in fh if not l.startswith(_COMMENT_PREFIX))
+            non_comment = (ln for ln in fh if not ln.startswith(_COMMENT_PREFIX))
             reader = csv.DictReader(non_comment, delimiter=CSV_DELIMITER)
             self._validate_columns(reader.fieldnames or [])
             for i, raw in enumerate(reader):
@@ -60,26 +60,26 @@ class MetadataCsvReader:
 
     def _parse_row(self, raw: dict[str, str]) -> MetadataRow:
         return MetadataRow(
-            row_id               = int(raw["row_id"]),
-            experiment_id        = raw["experiment_id"],
-            run_id               = raw["run_id"],
-            absolute_timestamp   = raw["absolute_timestamp"],
-            relative_timestamp_s = float(raw["relative_timestamp_s"]),
-            event_kind           = raw["event_kind"],
-            source_node          = raw["source_node"],
-            source_ip            = raw["source_ip"],
-            source_mac           = raw["source_mac"],
-            target_node          = raw["target_node"],
-            target_ip            = raw["target_ip"],
-            target_mac           = raw["target_mac"],
-            protocol             = raw["protocol"],
-            action               = raw["action"],
-            label                = raw["label"],
-            mitre_technique      = raw["mitre_technique"],
-            mitre_subtechnique   = raw["mitre_subtechnique"],
-            attack_intensity     = raw["attack_intensity"],
-            benign_profile       = raw["benign_profile"],
-            duration_s           = float(raw["duration_s"]),
-            notes                = raw["notes"],
-            row_checksum         = raw["row_checksum"],
+            row_id=int(raw["row_id"]),
+            experiment_id=raw["experiment_id"],
+            run_id=raw["run_id"],
+            absolute_timestamp=raw["absolute_timestamp"],
+            relative_timestamp_s=float(raw["relative_timestamp_s"]),
+            event_kind=raw["event_kind"],
+            source_node=raw["source_node"],
+            source_ip=raw["source_ip"],
+            source_mac=raw["source_mac"],
+            target_node=raw["target_node"],
+            target_ip=raw["target_ip"],
+            target_mac=raw["target_mac"],
+            protocol=raw["protocol"],
+            action=raw["action"],
+            label=raw["label"],
+            mitre_technique=raw["mitre_technique"],
+            mitre_subtechnique=raw["mitre_subtechnique"],
+            attack_intensity=raw["attack_intensity"],
+            benign_profile=raw["benign_profile"],
+            duration_s=float(raw["duration_s"]),
+            notes=raw["notes"],
+            row_checksum=raw["row_checksum"],
         )

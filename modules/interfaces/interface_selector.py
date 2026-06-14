@@ -3,19 +3,25 @@ from modules.interfaces.interface_lister import InterfaceInfo, list_interfaces
 
 logger = logging.getLogger(__name__)
 
-_WIRED_PREFIXES:    tuple[str, ...] = ("eth", "en", "eno", "enp", "ens")
+_WIRED_PREFIXES: tuple[str, ...] = ("eth", "en", "eno", "enp", "ens")
 _WIRELESS_PREFIXES: tuple[str, ...] = ("wlan", "wlp", "wl", "wifi", "wlo")
 
 
 def _score(iface: InterfaceInfo) -> int:
     score = 0
-    if iface.is_up:        score += 40
-    if iface.is_private:   score += 30
-    if not iface.is_virtual: score += 20
+    if iface.is_up:
+        score += 40
+    if iface.is_private:
+        score += 30
+    if not iface.is_virtual:
+        score += 20
     name_lower = iface.name.lower()
-    if any(name_lower.startswith(p) for p in _WIRED_PREFIXES):    score += 10
-    elif any(name_lower.startswith(p) for p in _WIRELESS_PREFIXES): score += 5
-    if iface.speed_mbps > 0: score += min(iface.speed_mbps // 100, 5)
+    if any(name_lower.startswith(p) for p in _WIRED_PREFIXES):
+        score += 10
+    elif any(name_lower.startswith(p) for p in _WIRELESS_PREFIXES):
+        score += 5
+    if iface.speed_mbps > 0:
+        score += min(iface.speed_mbps // 100, 5)
     return score
 
 

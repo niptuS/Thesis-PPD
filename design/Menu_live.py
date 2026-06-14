@@ -1,83 +1,61 @@
 from __future__ import annotations
+from design.models import Section
 
-from datetime import datetime, timezone
-from typing import Optional
 
-from design.Menu_types import Section, FieldMeta
+def _fmt_time(seconds: float) -> str:
+    s = int(seconds)
+    h, s = divmod(s, 3600)
+    m, s = divmod(s, 60)
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+
+def _state_indicator(ok: bool) -> str:
+    return "OK" if ok else "!!"
 
 
 def build_live_section(
-    manager=None,
-    scenario_start: Optional[datetime] = None,
-    planned_duration_s: int = 0,
-    next_event_label: str = "—",
-    active_benign: str = "—",
-    active_attack: str = "—",
+    state="IDLE", started_at="—", elapsed_s=0.0, remaining_s=0.0,
+    planned_s=0.0, pcap_path="", metadata_path="", flows_path="",
+    active_benign="—", active_attack="—", next_event="—",
+    capture_ok=False, logger_ok=True, events_fired=0, events_total=0,
+    flows_generated=0, error="",
 ) -> Section:
-    elapsed_s    = 0.0
-    remaining_s  = float(planned_duration_s)
-    pcap_file    = "—"
-    meta_file    = "—"
-    capture_ok   = "—"
-    is_running   = False
-
-    if manager is not None and scenario_start is not None:
-        now          = datetime.now(timezone.utc)
-        elapsed_s    = max(0.0, (now - scenario_start).total_seconds())
-        remaining_s  = max(0.0, planned_duration_s - elapsed_s)
-        pcap_file    = manager.pcap_path.name    if manager.pcap_path    else "—"
-        meta_file    = manager.metadata_path.name if manager.metadata_path else "—"
-        is_running   = manager._pcap_writer.is_running()
-        capture_ok   = "OK" if is_running else "STOPPED"
-
-    def fmt_time(seconds: float) -> str:
-        h  = int(seconds) // 3600
-        m  = (int(seconds) % 3600) // 60
-        s  = int(seconds) % 60
-        return f"{h:02d}:{m:02d}:{s:02d}"
-
-    capture_badge = f"[capture: {capture_ok}]"
-    logger_badge  = "[logger: OK]"
-    clock_badge   = "[clock sync: OK]"
-
-    lines: list[str] = [
-        "─── Runtime ──────────────────────────────────────",
+    content = [
+        "─── Runtime ──────────────────────────────────────────",
+        f"  Estado      : {state}",
+        f"  Inicio      : {started_at}",
+        f"  Transcurrido: {_fmt_time(elapsed_s)}",
+        f"  Restante    : {_fmt_time(remaining_s)}",
+        f"  Duración    : {_fmt_time(planned_s)}",
         "",
-        f"  Started at    : {scenario_start.strftime('%H:%M:%S') if scenario_start else '—'}",
-        f"  Elapsed       : {fmt_time(elapsed_s)}",
-        f"  Remaining     : {fmt_time(remaining_s)}",
-        f"  PCAP file     : {pcap_file}",
-        f"  Metadata file : {meta_file}",
+        "─── Archivos de salida ───────────────────────────────",
+        f"  PCAP        : {pcap_path or '(pendiente)'}",
+        f"  Metadatos   : {metadata_path or '(pendiente)'}",
+        f"  Flujos CSV  : {flows_path or '(pendiente)'}",
         "",
-        "─── Current Activity ─────────────────────────────",
-        "",
-        f"  Active benign : {active_benign}",
-        f"  Active attack : {active_attack}",
-        f"  Next event    : {next_event_label}",
-        "",
-        "─── Health ───────────────────────────────────────",
-        "",
-        f"  {capture_badge}    {logger_badge}    {clock_badge}",
-        "",
-        "─── Actions ──────────────────────────────────────",
-        "",
-        "  [Ctrl+P] Pausa    [Ctrl+R] Reanudar    [Ctrl+X] Abortar",
+        "─── Actividad actual ─────────────────────────────────",
+        f"  Benigno     : {active_benign}",
+        f"  Ataque      : {active_attack}",
+        f"  Próximo     : {next_event}",
+        f"  Eventos     : {events_fired}/{events_total}",
     ]
+    if flows_generated > 0:
+        content.append(f"  Flujos NFStream: {flows_generated}")
+    content.append("")
+    content.append("─── Health ───────────────────────────────────────────")
+    content.append(f"  [capture= {_state_indicator(capture_ok)}]  [logger= {_state_indicator(logger_ok)}]")
+    if error:
+        content.append(f"  ⚠ Error: {error}")
 
-    hint = (
-        "Ejecución activa — Ctrl+P pausar · Ctrl+R reanudar · Ctrl+X abortar"
-        if is_running else
-        "Sin ejecución activa — Ctrl+R para iniciar · Ctrl+O para cargar escenario"
-    )
+    if state == "IDLE":
+        hint = "Ctrl+R=iniciar · Configure escenario y dispositivos antes de ejecutar"
+    elif state in ("RUNNING", "PAUSED"):
+        hint = f"Ctrl+P=pausar · Ctrl+X=abortar · {_fmt_time(elapsed_s)}/{_fmt_time(planned_s)}"
+    else:
+        hint = f"Estado: {state} · Flujos: {flows_generated} · Ctrl+R=reiniciar"
 
-    return Section(
-        key="live",
-        label="Live Execution",
-        hint=hint,
-        content_lines=lines,
-        actions=[],
-        field_map=[],
-    )
+    return Section(key="live", label="Live Execution", hint=hint,
+                   content_lines=content, actions=[], field_map=[])
 
 
-LIVE_SECTION = build_live_section()
+LIVE_SECTION: Section = build_live_section()

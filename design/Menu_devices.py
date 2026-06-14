@@ -1,129 +1,106 @@
 from __future__ import annotations
+from design.models import Section, FieldMeta
 
-from dataclasses import dataclass, field
-from design.Menu_types import Section, FieldMeta
+PAGE_SIZE = 10
+DEVICE_ROLES = ["target", "benign", "attacker", "unknown"]
 
-
-@dataclass
-class DeviceEntry:
-    node_id:   str
-    role:      str
-    ip:        str
-    mac:       str
-    vendor:    str
-    protocols: str
-    tags:      str
-    status:    str
-
-
-_PLACEHOLDER_DEVICES: list[DeviceEntry] = [
-    DeviceEntry("smartbulb01",  "target",   "192.168.1.10", "AA:BB:CC:DD:EE:01", "Philips",   "HTTP MQTT",  "bulb kitchen",   "online"),
-    DeviceEntry("smartbulb02",  "target",   "192.168.1.11", "AA:BB:CC:DD:EE:02", "Philips",   "HTTP MQTT",  "bulb living",    "online"),
-    DeviceEntry("smartplug01",  "target",   "192.168.1.20", "AA:BB:CC:DD:EE:03", "TP-Link",   "HTTP",       "plug kitchen",   "online"),
-    DeviceEntry("camera01",     "target",   "192.168.1.30", "AA:BB:CC:DD:EE:04", "Hikvision", "RTSP HTTP",  "camera outdoor", "online"),
-    DeviceEntry("echo01",       "benign",   "192.168.1.40", "AA:BB:CC:DD:EE:05", "Amazon",    "HTTP HTTPS", "alexa voice",    "online"),
-    DeviceEntry("kalivm",       "attacker", "192.168.1.50", "AA:BB:CC:DD:EE:06", "VMware",    "TCP",        "attacker vm",    "ready"),
+_DETAIL_FIELDS_DISPLAY = [
+    ("role", "Role"),
+    ("tags", "Tags"),
+    ("hostname", "Hostname"),
+    ("notes", "Notes"),
+    ("device_type", "Device type"),
 ]
 
 
-def _build_device_table(devices: list[DeviceEntry]) -> list[str]:
-    lines: list[str] = []
-    header = f"  {'ID':<16} {'Role':<10} {'IP':<16} {'Status':<8}"
+def _display_id(d): return d.hostname or d.ip.replace(".", "_")
+
+
+def _build_device_table(devices, page=0, device_cursor=0):
+    lines = []
+    header = f"  {'':2} {'ID':<18} {'Type':<10} {'Role':<10} {'IP':<16} {'Vendor':<14} {'St':<6}"
     lines.append(header)
     lines.append("  " + "─" * (len(header) - 2))
-    for d in devices:
-        lines.append(
-            f"  {d.node_id:<16} {d.role:<10} {d.ip:<16} {d.status:<8}"
-        )
+    if not devices:
+        lines.append("     (vacío — S para escanear)")
+        return lines
+    total = len(devices)
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = min(page, total_pages - 1)
+    start = page * PAGE_SIZE
+    end = min(start + PAGE_SIZE, total)
+    for i, d in enumerate(devices[start:end]):
+        abs_idx = start + i
+        marker = "►" if abs_idx == device_cursor else " "
+        did = _display_id(d)[:17]
+        dtype = (d.device_type or "?")[:9]
+        vendor = (d.vendor or "")[:13]
+        lines.append(f"  {marker} {did:<18} {dtype:<10} {d.role:<10} {d.ip:<16} {vendor:<14} {d.status:<6}")
+    if total_pages > 1:
+        lines.append("")
+        lines.append(f"  Pág {page + 1}/{total_pages}  ({start + 1}-{end} de {total})    ◄ PgUp  PgDn ►")
+    else:
+        lines.append(f"  {total} dispositivo(s)")
     return lines
 
 
-def _build_selected_detail(device: DeviceEntry) -> list[str]:
-    return [
-        f"  Node ID   : {device.node_id}",
-        f"  Role      : {device.role}",
-        f"  IP        : {device.ip}",
-        f"  MAC       : {device.mac}",
-        f"  Vendor    : {device.vendor}",
-        f"  Protocols : {device.protocols}",
-        f"  Tags      : {device.tags}",
-        f"  Status    : {device.status}",
-    ]
+def _build_selected_detail(device, detail_cursor=-1):
+    """Build detail section with navigable cursor marker."""
+    fields = []
+    vals = {
+        "role": device.role,
+        "tags": " ".join(device.tags) if device.tags else "—",
+        "hostname": device.hostname or "—",
+        "notes": device.notes or "—",
+        "device_type": device.device_type,
+    }
+    for i, (attr, label) in enumerate(_DETAIL_FIELDS_DISPLAY):
+        marker = "►" if i == detail_cursor else " "
+        val = vals.get(attr, "—")
+        editable = "✎" if attr != "device_type" else " "
+        fields.append(f"  {marker}{editable} {label:<13}: {val}")
+    return fields
 
 
-def build_devices_section(
-    devices:        list[DeviceEntry] | None = None,
-    selected_id:    str                      = "",
-    scan_iface:     str                      = "",
-    scan_cidr:      str                      = "192.168.1.0/24",
-    last_scan:      str                      = "never",
-    scan_method:    str                      = "nmap",
-) -> Section:
-    device_list = devices if devices is not None else _PLACEHOLDER_DEVICES
-    selected    = next(
-        (d for d in device_list if d.node_id == selected_id),
-        device_list[0] if device_list else None,
-    )
-
-    scan_iface_display = scan_iface or "(not set — use Ctrl+N)"
-
-    content: list[str] = [
+def build_devices_section(devices=None, device_cursor=0, page=0,
+                          scan_iface="", scan_cidr="192.168.1.0/24",
+                          last_scan="never", scan_method="nmap",
+                          detail_cursor=-1):
+    device_list = devices if devices is not None else []
+    selected = device_list[device_cursor] if device_list and 0 <= device_cursor < len(device_list) else None
+    content = [
         "─── Scan Settings ────────────────────────────────────",
-        f"  Interface  : {scan_iface_display}",
+        f"  Interface  : {scan_iface or '(not set — Ctrl+N)'}",
         f"  CIDR       : {scan_cidr}",
-        f"  Method     : {scan_method}   [nmap | arp | mdns | all]",
+        f"  Method     : {scan_method}   [nmap | arp | all]",
         f"  Last scan  : {last_scan}",
-        "",
-        "─── Actions ──────────────────────────────────────────",
-        "  [S] Scan now    [M] Change method    [C] Set CIDR",
         "",
         "─── Registered Nodes ─────────────────────────────────",
     ]
-
-    content.extend(_build_device_table(device_list))
-
-    field_map: list[FieldMeta] = []
-    scan_iface_line = 1
-    scan_cidr_line  = 2
-    scan_method_line = 3
-
-    field_map.append(FieldMeta(
-        line_idx  = scan_iface_line,
-        label     = "Interface",
-        attr_path = "capture_iface",
-        editable  = True,
-    ))
-    field_map.append(FieldMeta(
-        line_idx  = scan_cidr_line,
-        label     = "CIDR",
-        attr_path = "scan_cidr",
-        editable  = True,
-    ))
-    field_map.append(FieldMeta(
-        line_idx  = scan_method_line,
-        label     = "Method",
-        attr_path = "scan_method",
-        editable  = True,
-    ))
-
+    content.extend(_build_device_table(device_list, page, device_cursor))
     if selected is not None:
         content.append("")
-        content.append(f"─── Selected: {selected.node_id} ──────────────────────────────")
-        content.extend(_build_selected_detail(selected))
+        sel_id = _display_id(selected)
+        content.append(f"─── {sel_id} ─────────────────────────────────────")
+        ports_str = ", ".join(str(p.port) for p in selected.open_ports) if selected.open_ports else "—"
+        protos = " ".join(dict.fromkeys(p.protocol for p in selected.open_ports if p.protocol)
+                          ) if selected.open_ports else "—"
+        content.append(f"  IP: {selected.ip}  MAC: {selected.mac or '—'}  Ports: {ports_str}  Proto: {protos}")
+        content.append(
+            f"  Vendor: {selected.vendor or '—'}  IoT score: {selected.iot_score}  Status: {selected.status}")
         content.append("")
-        content.append("─── Node Actions ─────────────────────────────────────")
-        content.append("  [A] Add    [E] Edit    [R] Remove    [T] Tag    [F] Filter")
+        content.append("  ── Campos editables (Enter=editar) ──")
+        content.extend(_build_selected_detail(selected, detail_cursor))
 
+    field_map = [
+        FieldMeta(line_idx=1, label="Interface", attr_path="capture_iface", editable=False),
+        FieldMeta(line_idx=2, label="CIDR", attr_path="scan_cidr", editable=True),
+        FieldMeta(line_idx=3, label="Method", attr_path="scan_method", editable=False),
+    ]
     return Section(
-        key          = "devices",
-        label        = "Devices",
-        hint         = (
-            "S=escanear red  ·  A=agregar nodo  ·  E=editar  ·  "
-            "R=remover  ·  T=etiquetar  ·  M=método  ·  Ctrl+N=cambiar NIC"
-        ),
-        content_lines = content,
-        actions       = ["S Scan", "A Add", "E Edit", "R Remove", "T Tag", "M Method", "C CIDR"],
-        field_map     = field_map,
+        key="devices", label="Devices",
+        hint="S=escanear · A=agregar · M=método · R=remover · Enter=editar · ↑↓=navegar",
+        content_lines=content, actions=[], field_map=field_map,
     )
 
 

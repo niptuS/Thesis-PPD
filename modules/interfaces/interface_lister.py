@@ -20,15 +20,15 @@ VIRTUAL_PREFIXES: tuple[str, ...] = (
 
 @dataclass
 class InterfaceInfo:
-    name:       str
-    ip:         str
-    mac:        str
-    is_up:      bool
-    mtu:        int
+    name: str
+    ip: str
+    mac: str
+    is_up: bool
+    mtu: int
     is_private: bool
     is_virtual: bool
     speed_mbps: int
-    addresses:  list[str] = field(default_factory=list)
+    addresses: list[str] = field(default_factory=list)
 
 
 def _is_private_ip(ip_str: str) -> bool:
@@ -63,8 +63,8 @@ def _extract_ipv4(addrs: list) -> tuple[str, list[str]]:
 
 def list_interfaces(include_virtual: bool = False) -> list[InterfaceInfo]:
     results: list[InterfaceInfo] = []
-    stats   = psutil.net_if_stats()
-    all_if  = psutil.net_if_addrs()
+    stats = psutil.net_if_stats()
+    all_if = psutil.net_if_addrs()
 
     for name, addrs in all_if.items():
         is_virtual = _is_virtual(name)
@@ -75,22 +75,22 @@ def list_interfaces(include_virtual: bool = False) -> list[InterfaceInfo]:
         if not ip:
             continue
 
-        mac      = _extract_mac(addrs)
+        mac = _extract_mac(addrs)
         iface_st = stats.get(name)
-        is_up    = iface_st.isup  if iface_st else False
-        mtu      = iface_st.mtu   if iface_st else 0
-        speed    = iface_st.speed if iface_st else 0
+        is_up = iface_st.isup if iface_st else False
+        mtu = iface_st.mtu if iface_st else 0
+        speed = iface_st.speed if iface_st else 0
 
         results.append(InterfaceInfo(
-            name       = name,
-            ip         = ip,
-            mac        = mac,
-            is_up      = is_up,
-            mtu        = mtu,
-            is_private = _is_private_ip(ip),
-            is_virtual = is_virtual,
-            speed_mbps = speed,
-            addresses  = all_ips,
+            name=name,
+            ip=ip,
+            mac=mac,
+            is_up=is_up,
+            mtu=mtu,
+            is_private=_is_private_ip(ip),
+            is_virtual=is_virtual,
+            speed_mbps=speed,
+            addresses=all_ips,
         ))
 
     logger.debug("interfaces discovered: %d", len(results))

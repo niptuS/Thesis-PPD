@@ -8,60 +8,67 @@ from modules.scenario_editor.config_schema import (
 )
 from modules.scenario_editor.config_validator import validate_scenario
 
+
 class ConfigLoadError(Exception):
     pass
 
+
 def _parse_output(raw: dict) -> OutputConfig:
     return OutputConfig(
-        folder          = raw["folder"],
-        capture_enabled = raw.get("capture_enabled", True),
-        export_pcap     = raw.get("export_pcap", True),
-        export_metadata = raw.get("export_metadata", True),
-        metadata_format = raw.get("metadata_format", "json"),
+        folder=raw["folder"],
+        capture_enabled=raw.get("capture_enabled", True),
+        export_pcap=raw.get("export_pcap", True),
+        export_metadata=raw.get("export_metadata", True),
+        metadata_format=raw.get("metadata_format", "json"),
     )
+
 
 def _parse_device(raw: dict) -> DeviceConfig:
     return DeviceConfig(
-        id        = raw["id"],
-        role      = raw["role"],
-        ip        = raw["ip"],
-        mac       = raw["mac"],
-        protocols = raw.get("protocols", []),
-        tags      = raw.get("tags", []),
+        id=raw["id"],
+        role=raw["role"],
+        ip=raw["ip"],
+        mac=raw["mac"],
+        protocols=raw.get("protocols", []),
+        tags=raw.get("tags", []),
     )
+
 
 def _parse_benign(raw: dict) -> BenignProfile:
     return BenignProfile(
-        id           = raw["id"],
-        device_class = raw["device_class"],
-        protocols    = raw.get("protocols", []),
-        rate         = raw["rate"],
-        duration     = raw["duration"],
-        start_offset = raw.get("start_offset", "00:00:00"),
-        enabled      = raw.get("enabled", True),
+        id=raw["id"],
+        device_class=raw["device_class"],
+        protocols=raw.get("protocols", []),
+        rate=raw["rate"],
+        duration=raw["duration"],
+        start_offset=raw.get("start_offset", "00:00:00"),
+        enabled=raw.get("enabled", True),
     )
+
 
 def _parse_attack(raw: dict) -> AttackModule:
     return AttackModule(
-        id          = raw["id"],
-        name        = raw["name"],
-        source_node = raw["source_node"],
-        target_node = raw["target_node"],
-        duration    = raw["duration"],
-        intensity   = raw["intensity"],
-        label       = raw["label"],
-        mitre_ref   = raw["mitre_ref"],
+        id=raw["id"],
+        name=raw["name"],
+        source_node=raw["source_node"],
+        target_node=raw["target_node"],
+        duration=raw["duration"],
+        intensity=raw["intensity"],
+        label=raw["label"],
+        mitre_ref=raw["mitre_re"],
     )
+
 
 def _parse_event(raw: dict) -> TimelineEvent:
     return TimelineEvent(
-        timestamp   = raw["timestamp"],
-        event_type  = raw["event_type"],
-        action_id   = raw["action_id"],
-        source_node = raw["source_node"],
-        target_node = raw["target_node"],
-        notes       = raw.get("notes", ""),
+        timestamp=raw["timestamp"],
+        event_type=raw["event_type"],
+        action_id=raw["action_id"],
+        source_node=raw["source_node"],
+        target_node=raw["target_node"],
+        notes=raw.get("notes", ""),
     )
+
 
 def load_scenario(path: str | Path) -> ScenarioConfig:
     scenario_path = Path(path)
@@ -77,17 +84,17 @@ def load_scenario(path: str | Path) -> ScenarioConfig:
 
     try:
         config = ScenarioConfig(
-            name             = raw["name"],
-            experiment_id    = raw["experiment_id"],
-            environment      = raw["environment"],
-            start_time       = raw["start_time"],
-            planned_duration = raw["planned_duration"],
-            schema_version   = raw.get("schema_version", "1.0"),
-            output           = _parse_output(raw.get("output", {"folder": "./data"})),
-            devices          = [_parse_device(d) for d in raw.get("devices", [])],
-            benign_profiles  = [_parse_benign(b) for b in raw.get("benign_profiles", [])],
-            attack_modules   = [_parse_attack(a) for a in raw.get("attack_modules", [])],
-            timeline         = [_parse_event(e) for e in raw.get("timeline", [])],
+            name=raw["name"],
+            experiment_id=raw["experiment_id"],
+            environment=raw["environment"],
+            start_time=raw["start_time"],
+            planned_duration=raw["planned_duration"],
+            schema_version=raw.get("schema_version", "1.0"),
+            output=_parse_output(raw.get("output", {"folder": "./data"})),
+            devices=[_parse_device(d) for d in raw.get("devices", [])],
+            benign_profiles=[_parse_benign(b) for b in raw.get("benign_profiles", [])],
+            attack_modules=[_parse_attack(a) for a in raw.get("attack_modules", [])],
+            timeline=[_parse_event(e) for e in raw.get("timeline", [])],
         )
     except KeyError as exc:
         raise ConfigLoadError(f"Missing required field: {exc}") from exc
