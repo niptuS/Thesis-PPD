@@ -4,9 +4,8 @@ services:
   sh-dataset:
     build: .
     container_name: sh-dataset
-    # Host networking — required for LAN access to IoT devices
     network_mode: host
-    # Interactive TUI
+    # Interactive TUI — required
     stdin_open: true
     tty: true
     # Persistent data
@@ -14,9 +13,12 @@ services:
       - ./saves:/app/saves
       - ./outputs:/app/outputs
       - ./plugins:/app/plugins
-    # Raw sockets for packet capture + hping3
+    # Raw sockets for packet capture
     cap_add:
       - NET_RAW
       - NET_ADMIN
     environment:
       - TERM=xterm-256color
+      - LANG=en_US.UTF-8
+      - LC_ALL=en_US.UTF-8
+      - NCURSES_NO_UTF8_ACS=1

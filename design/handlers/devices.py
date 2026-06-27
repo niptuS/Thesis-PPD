@@ -91,6 +91,31 @@ class DevicesController:
         self._host_added = True
         self._refresh()
 
+    def update_host_ip(self) -> None:
+        """Update host device IP to current value after loading saved config."""
+        current_ip = get_host_ip()
+        current_mac = get_host_mac()
+        hostname = get_host_hostname()
+        for dev in self._registry.all():
+            if "host" in dev.tags and dev.role == "attacker":
+                if dev.ip != current_ip:
+                    old_ip = dev.ip
+                    try:
+                        self._registry.remove(old_ip)
+                    except KeyError:
+                        pass
+                    dev.ip = current_ip
+                    dev.mac = current_mac
+                    dev.hostname = hostname
+                    self._registry.upsert(dev)
+                    EVENT_LOG.info(
+                        f"Host IP actualizada: {old_ip} → {current_ip}"
+                    )
+                    self._refresh()
+                return
+        self._host_added = False
+        self.ensure_host_attacker()
+
     def handle_key(self, key: int) -> bool:
         action_map = {
             ord("s"): self._do_scan, ord("S"): self._do_scan,

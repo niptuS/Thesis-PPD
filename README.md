@@ -8,7 +8,7 @@ Desarrollado como trabajo de tesis para la Universidad de Santiago de Chile (USA
 
 ## Descripción
 
-SH-DATASET permite diseñar escenarios experimentales donde se combinan acciones benignas (peticiones HTTP/MQTT a dispositivos IoT reales) con ataques de red (ejecutados desde Kali Linux), capturando simultáneamente todo el tráfico de la red. El resultado es un dataset con flujos de red etiquetados como `attack`, `benign` o `unknown`, útil para entrenar y evaluar modelos de detección de intrusos.
+SH-DATASET permite diseñar escenarios experimentales donde se combinan acciones benignas (peticiones HTTP/MQTT a dispositivos IoT reales) con ataques de red (ejecutados desde Kali Linux y scripts de Python), capturando simultáneamente todo el tráfico de la red. El resultado es un dataset con flujos de red etiquetados como `attack`, `benign` o `unknown`, útil para entrenar y evaluar modelos de detección de intrusos.
 
 ### Flujo de trabajo
 
@@ -141,23 +141,47 @@ pip install -r requirements.txt
 | pylint | 4.0.5 | Análisis estático de código |
 | flake8 | 7.3.0 | Cumplimiento PEP 8 |
 
-### Ejecución directa
+### Ejecución nativa (recomendado para laboratorio)
 
 ```bash
+# Windows
+run.bat
+
+# Linux/Mac
+./run.sh
+
+# O directamente
 python App.py
 ```
 
-### Docker (portable)
+Instala dependencias Python automáticamente y verifica Wireshark/tcpdump.
+
+### Docker (portabilidad y reproducibilidad)
 
 ```bash
-# Construir imagen con todas las herramientas de Kali
-docker-compose build
+# Windows
+run_docker.bat
 
-# Ejecutar
-docker-compose up
+# Linux/Mac
+./run_docker.sh
 ```
 
-El contenedor incluye todas las herramientas de ataque (hping3, nmap, hydra, ettercap, etc.) preinstaladas. Requiere `--net=host` y `--cap-add=NET_RAW,NET_ADMIN` para acceso a la red local.
+Construye una imagen con todas las herramientas de Kali preinstaladas y ejecuta el software en modo interactivo.
+
+El contenedor incluye todas las herramientas de ataque (hping3, nmap, hydra, ettercap, etc.) preinstaladas.
+
+> **Limitación en Windows/Mac**: Docker Desktop corre una VM Linux interna.
+> `--net=host` expone las interfaces de la VM, no las del PC (Wi-Fi, Ethernet).
+> Para captura de tráfico en interfaces físicas, ejecutar nativamente (`python App.py`).
+> Docker funciona correctamente para ataques SSH a Kali, procesamiento de PCAPs y análisis.
+>
+> En **Linux nativo**, `--net=host` sí expone las interfaces reales del host.
+
+| Modo | Captura en Wi-Fi/Ethernet | Ataques SSH | Análisis PCAP |
+|------|:-------------------------:|:-----------:|:-------------:|
+| Nativo (python App.py) | ✓ | ✓ | ✓ |
+| Docker en Linux | ✓ | ✓ | ✓ |
+| Docker Desktop (Win/Mac) | ✗ (solo interfaces VM) | ✓ | ✓ |
 
 ## Uso
 

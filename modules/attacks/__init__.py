@@ -9,7 +9,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="syn_flood",
         recommended_dur_s=30,
-        description="SYN flood — satura conexiones TCP del target",
+        description="SYN flood",
         mitre_ref="T1498.001",
         tool="hping3",
         category="dos",
@@ -18,7 +18,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="dos_http",
         recommended_dur_s=60,
-        description="HTTP Slowloris — mantiene conexiones HTTP abiertas",
+        description="HTTP Slowloris",
         mitre_ref="T1499.001",
         tool="slowloris",
         category="dos",
@@ -28,7 +28,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="udp_flood",
         recommended_dur_s=30,
-        description="UDP flood — saturación con paquetes UDP",
+        description="UDP flood",
         mitre_ref="T1498.001",
         tool="hping3",
         category="dos",
@@ -37,7 +37,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="icmp_flood",
         recommended_dur_s=30,
-        description="ICMP flood (ping of death) — saturación ICMP",
+        description="ICMP flood (ping of death)",
         mitre_ref="T1498.001",
         tool="hping3",
         category="dos",
@@ -48,7 +48,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="port_scan",
         recommended_dur_s=120,
-        description="Escaneo de puertos TCP — reconocimiento de servicios",
+        description="Escaneo de puertos TCP",
         mitre_ref="T1046",
         tool="nmap",
         category="recon",
@@ -58,7 +58,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="vuln_scan",
         recommended_dur_s=300,
-        description="Escaneo de vulnerabilidades con scripts NSE",
+        description="Escaneo de vulnerabilidades",
         mitre_ref="T1595",
         tool="nmap",
         category="recon",
@@ -76,18 +76,18 @@ ATTACK_LIBRARY: list[AttackDef] = [
 
     # ── MITM ────────────────────────────────────────────────
     AttackDef(
-        name="arp_spoo",
+        name="arp_spoof",
         recommended_dur_s=60,
-        description="ARP spoofing — intercepta tráfico entre target y gateway",
+        description="ARP spoofing",
         mitre_ref="T1557.002",
-        tool="arpspoo",
+        tool="arpspoof",
         category="mitm",
         command="timeout {duration} arpspoof -i eth0 -t {target} {gateway}",
     ),
     AttackDef(
         name="arp_spoof_ettercap",
         recommended_dur_s=60,
-        description="MITM con Ettercap — ARP poisoning bidireccional",
+        description="MITM con Ettercap",
         mitre_ref="T1557.002",
         tool="ettercap",
         category="mitm",
@@ -98,7 +98,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="brute_ssh",
         recommended_dur_s=120,
-        description="Fuerza bruta SSH — prueba credenciales con Hydra",
+        description="Fuerza bruta SSH",
         mitre_ref="T1110.001",
         tool="hydra",
         category="brute_force",
@@ -108,7 +108,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="brute_http",
         recommended_dur_s=120,
-        description="Fuerza bruta HTTP login — prueba credenciales web",
+        description="Fuerza bruta HTTP login",
         mitre_ref="T1110.001",
         tool="hydra",
         category="brute_force",
@@ -118,7 +118,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="brute_telnet",
         recommended_dur_s=120,
-        description="Fuerza bruta Telnet — común en IoT legacy",
+        description="Fuerza bruta Telnet",
         mitre_ref="T1110.001",
         tool="hydra",
         category="brute_force",
@@ -130,7 +130,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="mqtt_flood",
         recommended_dur_s=30,
-        description="MQTT flood — publica mensajes masivos al broker",
+        description="MQTT flood",
         mitre_ref="T1498",
         tool="mosquitto_pub",
         category="dos",
@@ -140,7 +140,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="tcp_flood",
         recommended_dur_s=30,
-        description="TCP flood — conexiones masivas al puerto del dispositivo",
+        description="TCP flood",
         mitre_ref="T1498.001",
         tool="hping3",
         category="dos",
@@ -149,7 +149,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="ping_flood",
         recommended_dur_s=30,
-        description="Ping flood — saturación ICMP rápida con nping",
+        description="Ping flood",
         mitre_ref="T1498.001",
         tool="nping",
         category="dos",
@@ -158,7 +158,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="coap_flood",
         recommended_dur_s=30,
-        description="CoAP flood — solicitudes masivas a dispositivo IoT (CoAP)",
+        description="CoAP flood",
         mitre_ref="T1498",
         tool="coap-client",
         category="dos",
@@ -172,7 +172,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     AttackDef(
         name="deauth_wifi",
         recommended_dur_s=30,
-        description="WiFi deauthentication — desconecta dispositivos del AP",
+        description="WiFi deauthentication",
         mitre_ref="T1498",
         tool="aireplay-ng",
         category="dos",
