@@ -185,7 +185,7 @@ class DevicesController:
             if key in (curses.KEY_ENTER, 10, 13):
                 self._edit_detail_field()
                 return True
-            if key == 27 or key == curses.KEY_LEFT:
+            if key in (27, curses.KEY_LEFT):
                 self._zone = "table"
                 self._detail_cursor = -1
                 self._refresh()
@@ -343,7 +343,7 @@ class DevicesController:
         if ctrl_tl:
             ctrl_tl._manager._events = [
                 e for e in ctrl_tl._manager._events
-                if e.source != ip and e.target != ip
+                if ip not in (e.source, e.target)
             ]
             ctrl_tl._clamp_cursor()
         EVENT_LOG.info(f"Dispositivo removido (+ cascada): {ip}")

@@ -3,28 +3,46 @@ jobs = 0
 
 [MESSAGES CONTROL]
 disable =
-    C0114,  # missing-module-docstring
-    C0115,  # missing-class-docstring
-    C0116,  # missing-function-docstring
-    C0301,  # line-too-long (flake8 handles this)
-    C0103,  # invalid-name
-    C0415,  # import-outside-toplevel (intentional for optional deps + circular imports)
-    R0903,  # too-few-public-methods
-    R0913,  # too-many-arguments
-    R0917,  # too-many-positional-arguments
-    W0611,  # unused-import (flake8 F401 handles this)
-    W0612,  # unused-variable
-    W0613,  # unused-argument
-    W0223,  # abstract-method
-    E0401,  # import-error (optional dependencies)
-    E0611,  # no-name-in-module (old attack modules reference removed classes)
-    E1102,  # not-callable (callback pattern)
+    # ── Documentation (handled by code review) ──
+    C0114, C0115, C0116,
+    # ── Import ordering (circular import avoidance pattern) ──
+    C0411, C0412, C0413,
+    # ── Import patterns (optional deps + circular avoidance) ──
+    C0415, E0401, E0611,
+    # ── Naming ──
+    C0103,
+    # ── Controller→App access pattern (_stdscr, _manager, _events) ──
+    W0212,
+    # ── TUI navigation: inherently complex handle_key methods ──
+    R0902, R0911, R0912, R0914, R0915,
+    # ── Duplicate TUI navigation patterns across handlers ──
+    R0801,
+    # ── Function signatures (executor APIs need many params) ──
+    R0903, R0913, R0917,
+    # ── Unused args/imports (flake8 handles these) ──
+    W0611, W0612, W0613,
+    # ── Abstract method ──
+    W0223,
+    # ── Callback pattern (self._get_executor) ──
+    E1102,
+    # ── Reimport in functions (conditional imports) ──
+    W0404, W0621,
+    # ── Attributes defined in start() not __init__() (engine pattern) ──
+    W0201,
+    # ── Broad exception in network/IO code (intentional catch-alls) ──
+    W0718,
+    # ── Resource management (subprocess.Popen needs manual control) ──
+    R1732,
+    # ── Style suggestions ──
+    R1705, R1714, R0402, R1721
 
 [FORMAT]
 max-line-length = 120
-max-args = 10
 
 [DESIGN]
-max-attributes = 20
-max-locals = 20
-max-branches = 15
+max-attributes = 35
+max-locals = 25
+max-branches = 20
+max-statements = 70
+max-args = 10
+max-returns = 12

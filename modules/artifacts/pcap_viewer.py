@@ -79,7 +79,7 @@ def read_pcap(path: str, max_packets: int = 500) -> tuple[list[PacketRow], str]:
         return packets, ""
     except subprocess.TimeoutExpired:
         return [], "tshark timeout"
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         return [], str(e)
 
 
@@ -97,7 +97,7 @@ def read_csv_file(path: str, max_rows: int = 500) -> tuple[list[str], list[list[
                     break
                 rows.append(row)
         return headers, rows, ""
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         return [], [], str(e)
 
 

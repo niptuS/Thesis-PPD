@@ -1,10 +1,8 @@
-"""
-Attack Library — maps to real Kali Linux tools for Smart Home pentesting.
-Each attack has a command template that runs natively on Kali.
-"""
 from modules.attacks.base import AttackDef, AttackResult
+from modules.attacks.plugin_loader import load_plugins as _load_plugins
 
-# ── Attack definitions using real Kali tools ────────────────────
+_PLUGIN_ATTACKS: list[AttackDef] | None = None
+_PLUGIN_STATUSES = []
 
 ATTACK_LIBRARY: list[AttackDef] = [
     # ── DoS / Flooding ──────────────────────────────────────
@@ -211,3 +209,18 @@ def get_attack_info_list() -> list[dict]:
          "mitre_re": a.mitre_ref, "tool": a.tool, "category": a.category}
         for a in ATTACK_LIBRARY
     ]
+
+def get_plugin_attacks(auto_install: bool = True, log_callback=None):
+    global _PLUGIN_ATTACKS, _PLUGIN_STATUSES
+    if _PLUGIN_ATTACKS is None:
+        _PLUGIN_ATTACKS, _PLUGIN_STATUSES = _load_plugins(
+            auto_install=auto_install,
+            log_callback=log_callback
+        )
+    return _PLUGIN_ATTACKS
+
+def get_plugin_statuses():
+    return _PLUGIN_STATUSES
+
+def get_all_attacks() -> list[AttackDef]:
+    return ATTACK_LIBRARY + (get_plugin_attacks() or [])

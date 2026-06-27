@@ -1,7 +1,7 @@
 """Brute Force — SSH/HTTP login brute force."""
-from modules.attacks.base import BaseAttack, AttackResult, logger
 import time
 import threading
+from modules.attacks.base import BaseAttack, AttackResult, logger
 
 
 class BruteForceAttack(BaseAttack):

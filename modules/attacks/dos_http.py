@@ -1,7 +1,7 @@
 """DoS HTTP Flood — HTTP GET/POST flood using requests or raw sockets."""
-from modules.attacks.base import BaseAttack, AttackResult, logger
 import time
 import threading
+from modules.attacks.base import BaseAttack, AttackResult, logger
 
 
 class DosHttpAttack(BaseAttack):

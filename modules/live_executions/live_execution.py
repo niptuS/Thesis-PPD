@@ -79,6 +79,9 @@ class LiveExecutionEngine:
         self._next_event: str = "—"
         self._flows_count: int = 0
         self._error: str = ""
+        # PCAP rotation: split files by size (KB)
+        # configurable via config.pcap_max_size_kb (default 10240 = 10 MB)
+        self._pcap_max_size_kb: int = 512000  # 500 MB default
         self._capture_ok: bool = False
         self._iface: str = ""
         self._config: Any = None
@@ -88,6 +91,8 @@ class LiveExecutionEngine:
 
         self._log_fn: Optional[Callable[[str, str], None]] = None
         self._ssh_password: str = ""
+        self._capture_benign: bool = True
+        self._attack_mode: str = "local"
         self._attacker_profiles: dict = {}
         self._get_executor = None  # callback: ip → SSHExecutor
 
@@ -318,14 +323,15 @@ class LiveExecutionEngine:
             time.sleep(0.5)
 
             # NFStream
-            if os.path.exists(self._pcap_path):
-                size = os.path.getsize(self._pcap_path)
-                if size > 24:
-                    self._extract_flows()
+            pcap_files = self._find_pcap_files()
+            if pcap_files:
+                total_size = sum(os.path.getsize(f) for f in pcap_files)
+                if total_size > 24:
+                    self._extract_flows(pcap_files)
                 else:
-                    self._log(f"PCAP vacío ({size} bytes) — sin flujos", "WARN")
+                    self._log(f"PCAP vacío ({total_size} bytes)", "WARN")
             else:
-                self._log("PCAP no encontrado — captura no se realizó", "WARN")
+                self._log("PCAP no encontrado", "WARN")
 
             self._generate_metadata()
             self._save_execution_log()
@@ -344,6 +350,23 @@ class LiveExecutionEngine:
             self._stop_capture()
 
     # ── capture ─────────────────────────────────────────────────
+
+    def _find_pcap_files(self) -> list[str]:
+        """Find all PCAP files from this capture (including rotated parts)."""
+        pcap_dir = os.path.dirname(self._pcap_path)
+        base = os.path.basename(self._pcap_path).rsplit(".", 1)[0]
+        files = []
+        if os.path.exists(self._pcap_path):
+            files.append(self._pcap_path)
+        # rotated files: base_00001_timestamp.pcap, base_00002_timestamp.pcap
+        if os.path.isdir(pcap_dir):
+            for fn in sorted(os.listdir(pcap_dir)):
+                full = os.path.join(pcap_dir, fn)
+                if full == self._pcap_path:
+                    continue
+                if fn.startswith(base) and fn.endswith((".pcap", ".pcapng")):
+                    files.append(full)
+        return files
 
     def _find_capture_tool(self) -> str:
         """Find tcpdump, tshark, or dumpcap on the system."""
@@ -395,10 +418,18 @@ class LiveExecutionEngine:
         try:
             if "tcpdump" in tool_name:
                 cmd = [tool, "-i", self._iface, "-w", self._pcap_path, "-U"]
+                if self._pcap_max_size_kb > 0:
+                    # -C = size in MB for tcpdump
+                    size_mb = max(1, self._pcap_max_size_kb // 1024)
+                    cmd.extend(["-C", str(size_mb)])
             elif "tshark" in tool_name:
                 cmd = [tool, "-i", self._iface, "-w", self._pcap_path, "-q"]
+                if self._pcap_max_size_kb > 0:
+                    cmd.extend(["-b", f"filesize:{self._pcap_max_size_kb}"])
             elif "dumpcap" in tool_name:
                 cmd = [tool, "-i", self._iface, "-w", self._pcap_path, "-q"]
+                if self._pcap_max_size_kb > 0:
+                    cmd.extend(["-b", f"filesize:{self._pcap_max_size_kb}"])
             else:
                 cmd = [tool, "-i", self._iface, "-w", self._pcap_path]
 
@@ -442,10 +473,15 @@ class LiveExecutionEngine:
                         self._pcap_proc.kill()
                     except Exception:  # pylint: disable=broad-exception-caught
                         pass
-            # check if pcap was created
-            if os.path.exists(self._pcap_path):
-                size = os.path.getsize(self._pcap_path)
-                self._log(f"Captura detenida — PCAP: {size} bytes", "OK")
+            # check all pcap files (rotated or single)
+            pcap_files = self._find_pcap_files()
+            if pcap_files:
+                total_size = sum(os.path.getsize(f) for f in pcap_files)
+                size_str = f"{total_size / 1048576:.1f} MB" if total_size > 1048576 else f"{total_size / 1024:.1f} KB"
+                self._log(
+                    f"Captura detenida — {len(pcap_files)} archivo(s) PCAP, {size_str} total",
+                    "OK",
+                )
             else:
                 self._log("Captura detenida — PCAP no generado", "WARN")
             self._pcap_proc = None
@@ -516,7 +552,14 @@ class LiveExecutionEngine:
                 elif action.protocol == "mqtt":
                     try:
                         from modules.communication.mqtt_executor import MQTTExecutor
-                        mqtt = MQTTExecutor()
+                        # connect to device IP (or broker) on MQTT port
+                        mqtt_port = 1883
+                        if profile.port in (1883, 8883):
+                            mqtt_port = profile.port
+                        mqtt = MQTTExecutor(
+                            broker_host=target_ip,
+                            broker_port=mqtt_port,
+                        )
                         result = mqtt.send_action(action, action.payload)
                         if result.success:
                             self._log(f"MQTT OK: {action_name} topic={action.endpoint}", "OK")
@@ -645,8 +688,9 @@ class LiveExecutionEngine:
 
     # ── NFStream + flow tagging by device role ──────────────────
 
-    def _extract_flows(self) -> None:
-        """Extract flows from PCAP. Try NFStream first, fallback to tshark."""
+    def _extract_flows(self, pcap_files: list = None) -> None:
+        """Extract flows from PCAP(s). Try NFStream first, fallback to tshark."""
+        self._pcap_files = pcap_files or [self._pcap_path]
         if self._extract_flows_nfstream():
             return
         if self._extract_flows_tshark():
@@ -704,7 +748,7 @@ class LiveExecutionEngine:
         return src_role, dst_role, "unknown"
 
     def _extract_flows_nfstream(self) -> bool:
-        """Try NFStream extraction. Returns True on success."""
+        """Try NFStream extraction from all PCAP files. Returns True on success."""
         self._log("Intentando NFStream…", "INFO")
         try:
             from nfstream import NFStreamer
@@ -713,42 +757,54 @@ class LiveExecutionEngine:
             return False
 
         try:
-            streamer = NFStreamer(source=self._pcap_path, statistical_analysis=False)
+            pcap_files = self._collect_rotated_pcaps()
+            if not pcap_files:
+                pcap_files = [self._pcap_path]
+            self._log(f"Procesando {len(pcap_files)} archivo(s) PCAP…", "INFO")
+
             count = 0
             stats = {"attack": 0, "benign": 0, "unknown": 0}
 
-            with open(self._flows_path, "w", newline="") as f:
+            with open(self._flows_path, "w", newline="", encoding="utf-8") as f:
                 writer = None
-                for flow in streamer:
-                    # compatible with all nfstream versions
-                    if hasattr(flow, "to_dict"):
-                        try:
-                            row = flow.to_dict()
-                        except Exception:  # pylint: disable=broad-exception-caught
-                            row = self._safe_flow_to_dict(flow)
-                    elif hasattr(flow, "to_pandas"):
-                        try:
-                            s = flow.to_pandas()
-                            row = s.to_dict() if hasattr(s, "to_dict") else self._safe_flow_to_dict(flow)
-                        except Exception:  # pylint: disable=broad-exception-caught
-                            row = self._safe_flow_to_dict(flow)
-                    else:
-                        row = self._safe_flow_to_dict(flow)
-                    src_role, dst_role, label = self._classify_flow(row.get("src_ip", ""), row.get("dst_ip", ""))
-                    stats[label] = stats.get(label, 0) + 1
-                    if not self._capture_benign and label != "attack":
+
+                for pcap_file in pcap_files:
+                    try:
+                        streamer = NFStreamer(
+                            source=pcap_file,
+                            statistical_analysis=False,
+                        )
+                    except Exception as exc:  # pylint: disable=broad-exception-caught
+                        self._log(
+                            f"NFStream skip {os.path.basename(pcap_file)}: {exc}",
+                            "WARN",
+                        )
                         continue
-                    row["src_role"] = src_role
-                    row["dst_role"] = dst_role
-                    row["flow_label"] = label
-                    if writer is None:
-                        writer = csv.DictWriter(f, fieldnames=row.keys())
-                        writer.writeheader()
-                    writer.writerow(row)
-                    count += 1
+
+                    for flow in streamer:
+                        row = self._safe_flow_to_dict(flow)
+                        src_role, dst_role, label = self._classify_flow(
+                            row.get("src_ip", ""),
+                            row.get("dst_ip", ""),
+                        )
+                        stats[label] = stats.get(label, 0) + 1
+                        if not self._capture_benign and label != "attack":
+                            continue
+                        row["src_role"] = src_role
+                        row["dst_role"] = dst_role
+                        row["flow_label"] = label
+                        if writer is None:
+                            writer = csv.DictWriter(f, fieldnames=row.keys())
+                            writer.writeheader()
+                        writer.writerow(row)
+                        count += 1
 
             self._flows_count = count
-            self._log(f"NFStream OK: {count} flujos ({stats}) → {os.path.basename(self._flows_path)}", "OK")
+            self._log(
+                f"NFStream OK: {count} flujos ({stats}) "
+                f"→ {os.path.basename(self._flows_path)}",
+                "OK",
+            )
             return True
         except Exception as exc:  # pylint: disable=broad-exception-caught
             self._log(f"NFStream falló: {exc}", "WARN")
@@ -780,8 +836,10 @@ class LiveExecutionEngine:
             for fld in fields:
                 field_args.extend(["-e", fld])
 
+            # process first PCAP (tshark processes one at a time)
+            pcap_source = self._pcap_files[0] if self._pcap_files else self._pcap_path
             cmd = [
-                tshark, "-r", self._pcap_path,
+                tshark, "-r", pcap_source,
                 "-T", "fields",
                 *field_args,
                 "-E", "header=y",
@@ -803,7 +861,7 @@ class LiveExecutionEngine:
             count = 0
             stats = {"attack": 0, "benign": 0, "unknown": 0}
 
-            with open(self._flows_path, "w", newline="") as f:
+            with open(self._flows_path, "w", newline="", encoding="utf-8") as f:
                 header = lines[0].split(",")
                 header.extend(["src_role", "dst_role", "flow_label"])
                 writer = csv.writer(f)
@@ -896,7 +954,7 @@ class LiveExecutionEngine:
         }
 
         try:
-            with open(self._meta_path, "w") as f:
+            with open(self._meta_path, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, indent=2, default=str)
             self._log(f"Metadatos: {os.path.basename(self._meta_path)}", "OK")
         except Exception as exc:  # pylint: disable=broad-exception-caught

@@ -18,3 +18,4 @@ outputs/logs/*
 outputs/pcap/*
 saves/scenarios/*
 tests/__pycache__
+plugins/attacks/__pycache__/*

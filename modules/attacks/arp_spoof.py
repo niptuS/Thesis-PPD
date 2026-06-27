@@ -1,6 +1,6 @@
 """ARP Spoofing — MITM via ARP cache poisoning using Scapy."""
-from modules.attacks.base import BaseAttack, AttackResult, logger
 import time
+from modules.attacks.base import BaseAttack, AttackResult, logger
 
 
 class ArpSpoofAttack(BaseAttack):

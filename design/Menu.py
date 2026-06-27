@@ -1143,6 +1143,8 @@ class MenuApp:
                     "planned_duration": getattr(cfg, "planned_duration", "00:30:00"),
                     "scan_cidr": getattr(cfg, "scan_cidr", "192.168.1.0/24"),
                     "scan_method": getattr(cfg, "scan_method", "nmap"),
+                    "capture_iface": CAPTURE_IFACE,
+                    "pcap_max_size_kb": getattr(cfg, "pcap_max_size_kb", 512000),
                 }
                 out = getattr(cfg, "output", None)
                 if out:
@@ -1161,7 +1163,6 @@ class MenuApp:
                         "ssh_user": getattr(atk, "ssh_user", "kali"),
                         "ssh_port": getattr(atk, "ssh_port", 22),
                         "ssh_key": getattr(atk, "ssh_key", ""),
-                        "password": getattr(atk, "password", ""),
                     }
             # devices
             ctrl_d = self._ctrl_devices
@@ -1199,7 +1200,7 @@ class MenuApp:
             if "scenario" in data and self.active_config is not None:
                 sc = data["scenario"]
                 cfg = self.active_config
-                for k in ("name", "experiment_id", "environment", "start_time", "planned_duration", "scan_cidr", "scan_method"):
+                for k in ("name", "experiment_id", "environment", "start_time", "planned_duration", "scan_cidr", "scan_method", "pcap_max_size_kb"):
                     if k in sc:
                         setattr(cfg, k, sc[k])
                 if "output" in sc:
@@ -1239,11 +1240,53 @@ class MenuApp:
                 ctrl_bp = self._ctrl_benign
                 ctrl_bp.load_from_list(data["benign_profiles"])
                 ctrl_bp._refresh()
+            # restore interface
+            global CAPTURE_IFACE
+            if "scenario" in data and "capture_iface" in data["scenario"]:
+                saved_iface = data["scenario"]["capture_iface"]
+                if saved_iface:
+                    CAPTURE_IFACE = saved_iface
+                    EVENT_LOG.info(f"Interfaz restaurada: {CAPTURE_IFACE}")
+            # update host IP to current value
+            if hasattr(self, "_ctrl_devices"):
+                self._ctrl_devices.update_host_ip()
+            # validate loaded data
+            self._validate_loaded_data(data)
             EVENT_LOG.ok(f"Cargado: {path}")
         except FileNotFoundError:
             EVENT_LOG.error(f"Archivo no encontrado: {path}")
         except Exception as exc:
             EVENT_LOG.error(f"Error al cargar: {exc}")
+
+    def _validate_loaded_data(self, data: dict) -> None:
+        """Validate loaded scenario data and warn about issues."""
+        from design.Menu_logs import EVENT_LOG
+        warnings = []
+        sc = data.get("scenario", {})
+        if not sc.get("name", "").strip():
+            warnings.append("Escenario sin nombre")
+        if not sc.get("experiment_id", "").strip():
+            warnings.append("Sin experiment ID")
+        st = sc.get("start_time", "")
+        if st and not (len(st.split(":")) == 3):
+            warnings.append(f"start_time formato inválido: {st}")
+        dur = sc.get("planned_duration", "")
+        if dur and not (len(dur.split(":")) == 3):
+            warnings.append(f"planned_duration formato inválido: {dur}")
+        # validate devices have IPs
+        for dev in data.get("devices", []):
+            ip = dev.get("ip", "")
+            if not ip or not all(p.isdigit() for p in ip.split(".") if p):
+                warnings.append(f"Dispositivo sin IP válida: {dev.get('hostname', '?')}")
+        # validate timeline targets exist in devices
+        device_ips = {d.get("ip") for d in data.get("devices", [])}
+        for ev in data.get("timeline", []):
+            tgt = ev.get("target", "")
+            if tgt and tgt not in device_ips:
+                warnings.append(f"Timeline: target {tgt} no está en devices")
+        if warnings:
+            for w in warnings:
+                EVENT_LOG.warn(f"  ⚠ {w}")
 
     def _do_run(self) -> None:
         if self.active_config is None:

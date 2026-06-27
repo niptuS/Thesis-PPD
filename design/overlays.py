@@ -36,9 +36,6 @@ def _draw_box(stdscr, oy, ox, h, w, title="", footer="Enter=ok  Esc=cancelar"):
         stdscr.addstr(oy + h - 1, ox, f" {footer} ".center(w))
         stdscr.attroff(curses.color_pair(PAIR_OVERLAY_BG))
 
-
-# ── Role selector (compact, colored) ───────────────────────────
-
 _ROLE_COLORS = {
     "target": PAIR_STATUS_WARN,
     "benign": PAIR_STATUS_OK,
@@ -170,19 +167,25 @@ def attack_select_overlay(stdscr, attacks: list[dict], current: str = "") -> Opt
             row = list_top + (i - scroll)
             if row >= oy + h - 1:
                 break
-            name = a["name"][:13]
-            tool = a.get("tool", "")[:9]
+            name  = a["name"][:13]
+            tool  = a.get("tool", "")[:9]
             mitre = a.get("mitre_re", "")[:11]
-            desc = a.get("description", "")[:17]
+            desc  = a.get("description", "")[:17]
+            # detectar si es plugin por el prefijo en category
+            is_plugin = str(a.get("category", "")).startswith("plugin:")
+            prefix = "P " if is_plugin else "  "
             line_text = f"{name:<14}{tool:<10}{mitre:<12}{desc}"[:w - 6]
+
             if i == cursor:
-                stdscr.attron(curses.color_pair(PAIR_STATUS_ERR) | curses.A_BOLD)
-                stdscr.addstr(row, ox + 2, f"► {line_text}".ljust(w - 4))
-                stdscr.attroff(curses.color_pair(PAIR_STATUS_ERR) | curses.A_BOLD)
+                pair = PAIR_STATUS_WARN if is_plugin else PAIR_STATUS_ERR
+                stdscr.attron(curses.color_pair(pair) | curses.A_BOLD)
+                stdscr.addstr(row, ox + 2, f"►{prefix}{line_text}".ljust(w - 4))
+                stdscr.attroff(curses.color_pair(pair) | curses.A_BOLD)
             else:
-                stdscr.attron(curses.color_pair(PAIR_OVERLAY_BG))
-                stdscr.addstr(row, ox + 2, f"  {line_text}".ljust(w - 4))
-                stdscr.attroff(curses.color_pair(PAIR_OVERLAY_BG))
+                pair = PAIR_STATUS_OK if is_plugin else PAIR_OVERLAY_BG
+                stdscr.attron(curses.color_pair(pair))
+                stdscr.addstr(row, ox + 2, f" {prefix}{line_text}".ljust(w - 4))
+                stdscr.attroff(curses.color_pair(pair))
         stdscr.refresh()
         key = stdscr.getch()
         if key == curses.KEY_UP:
