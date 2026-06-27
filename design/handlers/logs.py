@@ -26,7 +26,7 @@ class LogsController:
             self._scroll_offset = max(0, self._scroll_offset - 1)
             self._refresh()
             return True
-        if key in (ord(""), ord("F")):
+        if key in (ord("f"), ord("F")):
             self._cycle_filter()
             return True
         if key in (ord("x"), ord("X")):
