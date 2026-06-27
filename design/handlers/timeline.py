@@ -114,7 +114,6 @@ class TimelineController:
         if len(profs) == 1:
             return profs[0].device_ip  # auto-select
         # multiple attackers — show selector
-        from design.overlays import device_select_overlay
         ctrl_d = getattr(self._app, "_ctrl_devices", None)
         if ctrl_d:
             attackers = [d for d in ctrl_d.devices if d.role == "attacker"]

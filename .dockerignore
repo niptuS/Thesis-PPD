@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+.cache
+.git
+outputs/pcap/*.pcap
+outputs/flows/*.csv
+outputs/metadata/*.json
+outputs/logs/*.txt
+reports/
+*.zip

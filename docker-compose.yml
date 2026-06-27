@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  sh-dataset:
+    build: .
+    container_name: sh-dataset
+    # Host networking — required for LAN access to IoT devices
+    network_mode: host
+    # Interactive TUI
+    stdin_open: true
+    tty: true
+    # Persistent data
+    volumes:
+      - ./saves:/app/saves
+      - ./outputs:/app/outputs
+      - ./plugins:/app/plugins
+    # Raw sockets for packet capture + hping3
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      - TERM=xterm-256color

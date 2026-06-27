@@ -1,7 +1,7 @@
 """Port Scan — TCP connect/SYN scan using nmap or Scapy."""
-from modules.attacks.base import BaseAttack, AttackResult, logger
 import subprocess
 import time
+from modules.attacks.base import BaseAttack, AttackResult, logger
 
 
 class PortScanAttack(BaseAttack):

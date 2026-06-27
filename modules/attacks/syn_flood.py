@@ -1,6 +1,6 @@
 """SYN Flood — TCP SYN packet flood using Scapy."""
-from modules.attacks.base import BaseAttack, AttackResult, logger
 import time
+from modules.attacks.base import BaseAttack, AttackResult, logger
 
 
 class SynFloodAttack(BaseAttack):

@@ -372,7 +372,7 @@ def scan_mqtt(device_ip, device_type, port=1883, timeout=3.0, log_fn=None):
         connected = [False]
 
         def on_connect(c, u, f, rc):
-            connected[0] = (rc == 0)
+            connected[0] = rc == 0
         client.on_connect = on_connect
         client.connect(device_ip, port, keepalive=int(timeout))
         client.loop_start()

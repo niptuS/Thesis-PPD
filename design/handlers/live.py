@@ -44,8 +44,6 @@ class LiveController:
     # ── actions ─────────────────────────────────────────────────
 
     def _do_start_or_resume(self) -> None:
-        from design.Menu_logs import EVENT_LOG
-
         if self._engine._state.value == "PAUSED":
             self._engine.resume()
             EVENT_LOG.info("Ejecución reanudada")
@@ -139,7 +137,6 @@ class LiveController:
 
             pending = sum(1 for e in manager.events if e.status in ("queued", "expired"))
             completed = sum(1 for e in manager.events if e.status == "completed")
-            from design.Menu_logs import EVENT_LOG
             EVENT_LOG.info(
                 f"Timeline: {len(manager)} eventos "
                 f"({completed} completados, {pending} pendientes) "

@@ -104,21 +104,20 @@ class SSHExecutor(BaseExecutor):
             channel.invoke_shell()
             channel.settimeout(timeout)
 
-            import time as _t
-            _t.sleep(0.5)
+            time.sleep(0.5)
             # drain any welcome message
             if channel.recv_ready():
                 channel.recv(4096)
 
             # send sudo su with password
             channel.send("sudo su\n")
-            _t.sleep(1)
+            time.sleep(1)
             # check if sudo asks for password
             if channel.recv_ready():
                 prompt = channel.recv(4096).decode("utf-8", errors="replace")
                 if "password" in prompt.lower():
                     channel.send(f"{self.password}\n")
-                    _t.sleep(1)
+                    time.sleep(1)
                     if channel.recv_ready():
                         channel.recv(4096)  # drain response
 
@@ -129,7 +128,7 @@ class SSHExecutor(BaseExecutor):
             output_chunks = []
             deadline = time.time() + timeout
             while time.time() < deadline:
-                _t.sleep(0.5)
+                time.sleep(0.5)
                 if channel.recv_ready():
                     chunk = channel.recv(8192).decode("utf-8", errors="replace")
                     output_chunks.append(chunk)
@@ -138,7 +137,7 @@ class SSHExecutor(BaseExecutor):
 
             # exit sudo shell
             channel.send("exit\n")
-            _t.sleep(0.3)
+            time.sleep(0.3)
             channel.close()
             client.close()
             elapsed = time.time() - start

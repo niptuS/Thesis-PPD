@@ -92,7 +92,6 @@ def load_scenario(path: str | Path) -> ScenarioConfig:
             schema_version=raw.get("schema_version", "1.0"),
             output=_parse_output(raw.get("output", {"folder": "./data"})),
             devices=[_parse_device(d) for d in raw.get("devices", [])],
-            benign_profiles=[_parse_benign(b) for b in raw.get("benign_profiles", [])],
             attack_modules=[_parse_attack(a) for a in raw.get("attack_modules", [])],
             timeline=[_parse_event(e) for e in raw.get("timeline", [])],
         )
