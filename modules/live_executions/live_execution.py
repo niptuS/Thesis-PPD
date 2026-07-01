@@ -438,12 +438,7 @@ class LiveExecutionEngine:
         tool_name = os.path.basename(tool).lower().replace(".exe", "")
         self._log(f"Herramienta de captura: {tool_name} ({tool})", "INFO")
 
-        # on Linux, prepend sudo if not root (capture needs raw sockets)
         need_sudo = False
-        if os.name != "nt" and os.geteuid() != 0:
-            need_sudo = True
-            self._log("Captura requiere sudo (se pedirá password)", "INFO")
-
         try:
             if "tcpdump" in tool_name:
                 cmd = [
@@ -467,16 +462,11 @@ class LiveExecutionEngine:
             else:
                 cmd = [tool, "-i", self._iface, "-w", self._pcap_path]
 
-            # prepend sudo on Linux if not root
-            if need_sudo:
-                cmd = ["sudo", "-n"] + cmd
-
             self._log(f"Comando: {' '.join(cmd)}", "INFO")
             self._pcap_proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
 
-            # verify process started successfully (wait 1s and check)
             time.sleep(1)
             if self._pcap_proc.poll() is not None:
                 _, stderr = self._pcap_proc.communicate(timeout=3)
