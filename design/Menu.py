@@ -377,27 +377,63 @@ def _draw_sidebar(stdscr, sections: list[Section], selected_idx: int, focus: str
         row += 1
 
 
-def _draw_content_with_fields(stdscr, section: Section, field_cursor: int, editing_line: int, inline_buf: str, top_y: int, bottom_y: int) -> None:
+def _draw_content_with_fields(stdscr, section, field_cursor, editing_line, inline_buf, top_y, bottom_y, scroll_offset=0):
+    """Render content area with auto-scroll that follows the cursor (► marker)."""
     _, max_x = stdscr.getmaxyx()
     left = MENU_WIDTH + 1
     width = max_x - 1 - left
     content_bot = bottom_y - HINT_HEIGHT
+
+    # section header
     stdscr.attron(curses.color_pair(PAIR_CONTENT) | curses.A_BOLD)
-    stdscr.addstr(top_y, left + 2, section.label.upper())
+    try:
+        stdscr.addstr(top_y, left + 2, section.label.upper())
+    except curses.error:
+        pass
     stdscr.attroff(curses.color_pair(PAIR_CONTENT) | curses.A_BOLD)
+
     line_to_field = {field.line_idx: field for field in section.field_map}
     selected_line = -1
     if 0 <= field_cursor < len(section.field_map):
         selected_line = section.field_map[field_cursor].line_idx
-    row = top_y + 1
+
+    total_lines = len(section.content_lines)
+    visible = content_bot - top_y - 2  # header + scroll indicator
+    if visible < 1:
+        return
+
+    # find cursor line (► marker or selected field)
+    cursor_line = -1
     for li, line in enumerate(section.content_lines):
-        if row >= content_bot:
+        if "\u25ba" in line:  # ► character
+            cursor_line = li
+            break
+    if cursor_line < 0 and selected_line >= 0:
+        cursor_line = selected_line
+
+    # auto-scroll: compute offset to keep cursor visible
+    scroll_off = scroll_offset
+    if cursor_line >= 0:
+        if cursor_line < scroll_off:
+            scroll_off = max(0, cursor_line - 2)
+        elif cursor_line >= scroll_off + visible:
+            scroll_off = cursor_line - visible + 3
+    max_scroll = max(0, total_lines - visible)
+    scroll_off = max(0, min(scroll_off, max_scroll))
+
+    # render visible lines
+    row = top_y + 1
+    drawn = 0
+    for li, line in enumerate(section.content_lines):
+        if li < scroll_off:
+            continue
+        if drawn >= visible:
             break
         field = line_to_field.get(li)
         if field is not None and li == editing_line:
             sep_end = _line_label_end(line)
             label_part = line[:sep_end]
-            display = f"{label_part}(editando) {inline_buf}"[: width - 2]
+            display = f"{label_part}(editando) {inline_buf}"[:width - 2]
             stdscr.attron(curses.color_pair(PAIR_FIELD_EDIT) | curses.A_BOLD)
             try:
                 stdscr.addstr(row, left + 2, display.ljust(width - 2))
@@ -405,7 +441,7 @@ def _draw_content_with_fields(stdscr, section: Section, field_cursor: int, editi
                 pass
             stdscr.attroff(curses.color_pair(PAIR_FIELD_EDIT) | curses.A_BOLD)
         elif field is not None and li == selected_line:
-            display = line[: width - 2]
+            display = line[:width - 2]
             stdscr.attron(curses.color_pair(PAIR_FIELD_HL) | curses.A_BOLD)
             try:
                 stdscr.addstr(row, left + 2, display.ljust(width - 2))
@@ -415,11 +451,23 @@ def _draw_content_with_fields(stdscr, section: Section, field_cursor: int, editi
         else:
             stdscr.attron(curses.color_pair(PAIR_CONTENT))
             try:
-                stdscr.addstr(row, left + 2, line[: width - 2])
+                stdscr.addstr(row, left + 2, line[:width - 2])
             except curses.error:
                 pass
             stdscr.attroff(curses.color_pair(PAIR_CONTENT))
         row += 1
+        drawn += 1
+
+    # scroll indicator
+    if total_lines > visible:
+        end_line = min(scroll_off + visible, total_lines)
+        indicator = f" [{scroll_off + 1}-{end_line}/{total_lines}] "
+        try:
+            stdscr.attron(curses.color_pair(PAIR_HINT_BG))
+            stdscr.addstr(content_bot - 1, left + 2, indicator[:width - 4])
+            stdscr.attroff(curses.color_pair(PAIR_HINT_BG))
+        except curses.error:
+            pass
 
 
 def _draw_hint_bar(stdscr, text: str, kind: str, bottom_y: int) -> None:
@@ -703,6 +751,7 @@ class MenuApp:
         self._status_msg: str = ""
         self._status_kind: str = "hint"
         self._editing_line: int = -1
+        self._content_scroll: dict = {}
         self._inline_buf: list[str] = []
         self._stdscr = None
         self._action_cb: Optional[Callable[[str, str], None]] = None
@@ -778,6 +827,12 @@ class MenuApp:
 
     def _section(self) -> Section:
         return SECTIONS[self.selected_idx]
+
+    def _reset_scroll_if_changed(self, new_key: str) -> None:
+        """Reset content scroll when switching to a different section."""
+        old_key = getattr(self, "_last_section", "")
+        if new_key != old_key:
+            self._last_section = new_key
 
     def _section_key(self) -> str:
         return self._section().key
@@ -876,6 +931,9 @@ class MenuApp:
 
     def run(self, stdscr) -> None:
         self._stdscr = stdscr
+        # Disable XON/XOFF so Ctrl+S reaches the app (not terminal freeze)
+        import os
+        os.system("stty -ixon 2>/dev/null")
         _init_colors()
         stdscr.keypad(True)
         stdscr.timeout(300)       # poll every 300ms for background updates
@@ -927,6 +985,7 @@ class MenuApp:
             "".join(self._inline_buf),
             top_y,
             bottom_y,
+            scroll_offset=self._content_scroll.get(self._section_key(), 0),
         )
         if self._editing_line >= 0:
             hint_text = "Escribe el valor · Enter confirmar · Esc cancelar"
@@ -1094,6 +1153,13 @@ class MenuApp:
         if new_val == old_val:
             pass  # no change
             return
+        # convert to int for numeric fields
+        if field.attr_path in ("pcap_max_size_kb",):
+            try:
+                new_val = int(new_val)
+            except ValueError:
+                EVENT_LOG.error(f"Valor inválido para {field.label}: debe ser numérico")
+                return
         _set_nested(self.active_config, field.attr_path, new_val)
         if field.attr_path == "experiment_id":
             self.experiment_id = new_val
@@ -1247,9 +1313,10 @@ class MenuApp:
                 if saved_iface:
                     CAPTURE_IFACE = saved_iface
                     EVENT_LOG.info(f"Interfaz restaurada: {CAPTURE_IFACE}")
-            # update host IP to current value
+            # update host IP + refresh devices display
             if hasattr(self, "_ctrl_devices"):
                 self._ctrl_devices.update_host_ip()
+                self._refresh_devices_section()
             # validate loaded data
             self._validate_loaded_data(data)
             EVENT_LOG.ok(f"Cargado: {path}")

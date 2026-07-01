@@ -15,7 +15,10 @@ def build_attacks_section(
 
     # ── Separar nativos de plugins ──────────────────────────────
     native  = ATTACK_LIBRARY
-    plugins = get_plugin_attacks() or []
+    try:
+        plugins = get_plugin_attacks() or [] if cursor is not None else []
+    except Exception:
+        plugins = []
 
     all_attacks = native + plugins
     total = len(all_attacks)
@@ -84,10 +87,13 @@ def build_attacks_section(
         content.append(f"  MITRE       : {sel.mitre_ref}")
         clean_cat = sel.category.removeprefix("plugin:")
         content.append(f"  Category    : {clean_cat}{'  · Plugin externo' if is_plugin else ''}")
-        dur_min = sel.recommended_dur_s // 60
-        dur_sec = sel.recommended_dur_s % 60
-        dur_str = f"{dur_min}m {dur_sec}s" if dur_min else f"{dur_sec}s"
-        content.append(f"  Duración    : {dur_str} recomendado")
+        if sel.continuous:
+            dur_min = sel.recommended_dur_s // 60
+            dur_sec = sel.recommended_dur_s % 60
+            dur_str = f"{dur_min}m {dur_sec}s" if dur_min else f"{dur_sec}s"
+            content.append(f"  Duración    : {dur_str} recomendado (continuo)")
+        else:
+            content.append(f"  Duración    : automática (termina solo)")
         content.append(f"  Root        : {'Sí' if sel.requires_root else 'No'}")
         if is_plugin and sel.local_fallback:
             content.append(f"  Función     : {sel.local_fallback}")

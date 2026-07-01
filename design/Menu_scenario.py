@@ -10,6 +10,7 @@ def build_scenario_section(config, **kwargs) -> Section:
         f"  Environment       : {config.environment}",
         f"  Start time        : {config.start_time}",
         f"  Planned duration  : {config.planned_duration}",
+        f"  PCAP max size    : {getattr(config, 'pcap_max_size_kb', 512000)} KB ({getattr(config, 'pcap_max_size_kb', 512000) // 1024} MB)",
     ]
 
     field_map = [
@@ -18,6 +19,7 @@ def build_scenario_section(config, **kwargs) -> Section:
         FieldMeta("environment", "Environment", True, 4),
         FieldMeta("start_time", "Start time", True, 5),
         FieldMeta("planned_duration", "Planned duration", True, 6),
+        FieldMeta("pcap_max_size_kb", "PCAP max size (KB)", True, 7),
     ]
 
     return Section(

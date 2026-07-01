@@ -199,16 +199,36 @@ class TimelineController:
             return
         offset_s = self._parse_time(offset_str)
 
-        # 5. duration — time wheel (#8)
-        dur_str = time_wheel_overlay(stdscr, "Duración del evento", "00:00:30")
-        if dur_str is None:
-            return
-        duration_s = self._parse_time(dur_str)
+        # 5. duration — only for continuous attacks (floods, MITM)
+        duration_s = 0
+        if etype == "attack":
+            from modules.attacks import get_attack_class
+            attack_def = get_attack_class(action)
+            if attack_def and attack_def.continuous:
+                # continuous attack: needs duration to stop
+                rec = attack_def.recommended_dur_s
+                rec_hms = f"{rec // 3600:02d}:{(rec % 3600) // 60:02d}:{rec % 60:02d}"
+                dur_str = time_wheel_overlay(
+                    stdscr,
+                    f"Duración ({attack_def.tool}, recomendado {rec}s)",
+                    rec_hms,
+                )
+                if dur_str is None:
+                    return
+                duration_s = self._parse_time(dur_str)
+            else:
+                # non-continuous (nmap, hydra): runs until complete
+                duration_s = 0
+        # benign events: instant (HTTP/MQTT request), no duration needed
 
-        # source — smart attacker selection
-        source = self._select_attacker(stdscr)
-        if source is None:
-            return
+        # source — benign uses local host, attack uses attacker selector
+        if etype == "benign":
+            from modules.devices.host_detector import get_host_ip
+            source = get_host_ip()
+        else:
+            source = self._select_attacker(stdscr)
+            if source is None:
+                return
 
         ev = TimelineEvent(
             offset_s=offset_s, event_type=etype, action=action,

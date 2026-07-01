@@ -10,6 +10,7 @@ ATTACK_DEFS = [
         command="",              # sin comando de sistema
         local_fallback="plugins.attacks.scapy_syn_flood:run",
         requires_root=True,
+        continuous=True,
         recommended_dur_s=30,
     )
 ]

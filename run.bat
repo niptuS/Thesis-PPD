@@ -1,7 +1,7 @@
 @echo off
 REM ═══════════════════════════════════════════════════════════════
 REM SH-DATASET — Ejecucion nativa (Windows)
-REM Requiere: Python 3.10+, Wireshark (dumpcap)
+REM Requiere: Python 3.10+, Wireshark (se detecta automaticamente)
 REM ═══════════════════════════════════════════════════════════════
 echo.
 echo  SH-DATASET Orchestrator
@@ -20,18 +20,18 @@ REM Install dependencies
 echo Verificando dependencias...
 pip install -r requirements.txt --quiet 2>nul
 if errorlevel 1 (
-    echo [WARN] Algunas dependencias no se instalaron. Continuando...
+    echo [WARN] Algunas dependencias no se instalaron.
 )
 
-REM Check Wireshark
-where dumpcap >nul 2>&1
-if errorlevel 1 (
-    echo [WARN] Wireshark no encontrado en PATH.
-    echo        Captura PCAP requiere Wireshark: https://wireshark.org
-    echo        Instalar y agregar a PATH, o el software usara tshark/tcpdump.
-    echo.
-)
+REM Create dirs
+if not exist outputs\pcap mkdir outputs\pcap
+if not exist outputs\flows mkdir outputs\flows
+if not exist outputs\metadata mkdir outputs\metadata
+if not exist outputs\logs mkdir outputs\logs
+if not exist saves\scenarios mkdir saves\scenarios
+if not exist plugins\attacks mkdir plugins\attacks
 
+echo.
 echo Iniciando SH-DATASET...
 echo.
 python App.py
