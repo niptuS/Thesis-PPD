@@ -171,6 +171,13 @@ class LiveExecutionEngine:
         self._pcap_path = os.path.join(pcap_dir, f"{exp_id}_{run_ts}.pcap")
         self._meta_path = os.path.join(meta_dir, f"{exp_id}_{run_ts}_metadata.json")
         self._flows_path = os.path.join(flows_dir, f"{exp_id}_{run_ts}_flows.csv")
+        self._pcap_max_size_kb = getattr(config, "pcap_max_size_kb", 512000)
+        if isinstance(self._pcap_max_size_kb, str):
+            try:
+                self._pcap_max_size_kb = int(self._pcap_max_size_kb)
+            except ValueError:
+                self._pcap_max_size_kb = 512000
+        self._log(f"PCAP max size: {self._pcap_max_size_kb} KB ({self._pcap_max_size_kb // 1024} MB)", "INFO")
 
         duration_str = getattr(config, "planned_duration", "00:30:00")
         self._planned_s = self._parse_duration(duration_str)
