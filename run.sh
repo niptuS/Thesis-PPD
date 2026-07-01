@@ -1,6 +1,9 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
 # SH-DATASET — Ejecucion nativa (Linux/Mac)
+#
+# Primera vez: ejecutar  sudo ./setup_capture.sh
+# Luego:       ejecutar  ./run.sh
 # ═══════════════════════════════════════════════════════════════
 echo ""
 echo "  SH-DATASET Orchestrator"
@@ -22,27 +25,34 @@ export TERM=xterm-256color
 
 mkdir -p outputs/pcap outputs/flows outputs/metadata outputs/logs saves/scenarios plugins/attacks
 
-# Cache sudo credentials BEFORE starting TUI
-# This way sudo -n works inside subprocess without prompting
-if [ "$(id -u)" -ne 0 ]; then
-    echo ""
-    echo "  La captura de paquetes requiere sudo."
-    echo "  Ingrese su password ahora para cachear credenciales:"
-    echo ""
-    sudo -v
-    if [ $? -ne 0 ]; then
-        echo "[WARN] sudo falló. La captura podria no funcionar."
-    else
-        echo "[OK] Credenciales sudo cacheadas."
-        # keep sudo alive in background
-        (while true; do sudo -n true; sleep 50; done) &
-        SUDO_KEEPALIVE_PID=$!
+# Check if capture tools have proper permissions
+CAN_CAPTURE=0
+for tool in tcpdump dumpcap tshark; do
+    if command -v $tool &>/dev/null; then
+        # Test if we can capture without root
+        timeout 1 $tool -D &>/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            CAN_CAPTURE=1
+            break
+        fi
     fi
+done
+
+if [ $CAN_CAPTURE -eq 0 ] && [ "$EUID" -ne 0 ]; then
     echo ""
+    echo "  [WARN] Sin permisos de captura."
+    echo "         Ejecutar primero: sudo ./setup_capture.sh"
+    echo "         O ejecutar como root: sudo ./run.sh"
+    echo ""
+    read -p "  ¿Continuar sin captura? (s/n) " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+        exit 1
+    fi
 fi
 
+echo ""
+echo "Iniciando SH-DATASET..."
+echo ""
 $PYTHON App.py "$@"
-
-# cleanup
 stty ixon 2>/dev/null
-[ -n "$SUDO_KEEPALIVE_PID" ] && kill $SUDO_KEEPALIVE_PID 2>/dev/null
