@@ -1,31 +1,48 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
 # SH-DATASET — Ejecucion nativa (Linux/Mac)
-# Requiere: Python 3.10+, tcpdump o tshark
 # ═══════════════════════════════════════════════════════════════
 echo ""
 echo "  SH-DATASET Orchestrator"
 echo "  ======================="
 echo ""
 
-# Check Python
-if ! command -v python3 &>/dev/null; then
-    echo "[ERROR] Python3 no encontrado. Instalar: sudo apt install python3"
+PYTHON=$(command -v python3 || command -v python)
+if [ -z "$PYTHON" ]; then
+    echo "[ERROR] Python3 no encontrado"
     exit 1
 fi
 
-# Install dependencies
 echo "Verificando dependencias..."
-pip3 install -r requirements.txt --quiet 2>/dev/null || \
-    pip3 install -r requirements.txt --quiet --break-system-packages 2>/dev/null
+$PYTHON -m pip install -r requirements.txt --quiet 2>/dev/null || \
+    $PYTHON -m pip install -r requirements.txt --quiet --break-system-packages 2>/dev/null
 
-# Check capture tools
-if ! command -v tcpdump &>/dev/null && ! command -v tshark &>/dev/null; then
-    echo "[WARN] tcpdump ni tshark encontrados."
-    echo "       Instalar: sudo apt install tcpdump"
+stty -ixon 2>/dev/null
+export TERM=xterm-256color
+
+mkdir -p outputs/pcap outputs/flows outputs/metadata outputs/logs saves/scenarios plugins/attacks
+
+# Cache sudo credentials BEFORE starting TUI
+# This way sudo -n works inside subprocess without prompting
+if [ "$(id -u)" -ne 0 ]; then
+    echo ""
+    echo "  La captura de paquetes requiere sudo."
+    echo "  Ingrese su password ahora para cachear credenciales:"
+    echo ""
+    sudo -v
+    if [ $? -ne 0 ]; then
+        echo "[WARN] sudo falló. La captura podria no funcionar."
+    else
+        echo "[OK] Credenciales sudo cacheadas."
+        # keep sudo alive in background
+        (while true; do sudo -n true; sleep 50; done) &
+        SUDO_KEEPALIVE_PID=$!
+    fi
     echo ""
 fi
 
-echo "Iniciando SH-DATASET..."
-echo ""
-python3 App.py
+$PYTHON App.py "$@"
+
+# cleanup
+stty ixon 2>/dev/null
+[ -n "$SUDO_KEEPALIVE_PID" ] && kill $SUDO_KEEPALIVE_PID 2>/dev/null

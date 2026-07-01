@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 from design.Menu_logs import EVENT_LOG
 from design.Menu_attacks import build_attacks_section, ATTACK_LIBRARY
+from modules.attacks import get_plugin_attacks
 from modules.attacks.base import check_tool_local, check_tool_ssh
 
 
@@ -25,12 +26,14 @@ class AttacksController:
             self._do_verify()
             return True
         if key == curses.KEY_DOWN:
-            if ATTACK_LIBRARY:
-                self._cursor = min(len(ATTACK_LIBRARY) - 1, self._cursor + 1)
+            total = len(ATTACK_LIBRARY) + len(get_plugin_attacks() or [])
+            if total:
+                self._cursor = min(total - 1, self._cursor + 1)
                 self._refresh()
             return True
         if key == curses.KEY_UP:
-            if ATTACK_LIBRARY:
+            total = len(ATTACK_LIBRARY) + len(get_plugin_attacks() or [])
+            if total:
                 self._cursor = max(0, self._cursor - 1)
                 self._refresh()
             return True

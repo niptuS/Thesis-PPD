@@ -58,7 +58,7 @@ class TestAttackLibrary(unittest.TestCase):
         for item in info:
             self.assertIn("name", item)
             self.assertIn("tool", item)
-            self.assertIn("mitre_re", item)
+            self.assertIn("mitre_ref", item)
 
     def test_categories_exist(self):
         categories = set(a.category for a in ATTACK_LIBRARY)

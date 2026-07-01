@@ -79,7 +79,8 @@ def _install_lib(lib_name: str) -> bool:
 
 def load_plugins(
     auto_install: bool = True,
-    log_callback=None,          # función(msg: str) para enviar al UI log
+    log_callback=None,
+    probe_deps: bool = False,          # función(msg: str) para enviar al UI log
 ) -> tuple[list[AttackDef], list[PluginStatus]]:
     """
     Escanea PLUGINS_DIR, verifica dependencias, instala si faltan,
@@ -110,7 +111,7 @@ def load_plugins(
         _log(f"[PLUGIN] Verificando: {py_file.name}")
 
         # ── 1. Detectar imports faltantes ──────────────────
-        missing = _probe_missing_imports(py_file)
+        missing = _probe_missing_imports(py_file) if probe_deps else []
 
         if missing:
             status.missing_libs = missing
@@ -119,7 +120,7 @@ def load_plugins(
                 if auto_install and _install_lib(lib):
                     _log(f"  ✓ '{lib}' instalada.")
                     # volver a probar después de instalar
-                    missing = _probe_missing_imports(py_file)
+                    missing = _probe_missing_imports(py_file) if probe_deps else []
                     status.missing_libs = missing
                     if not missing:
                         break

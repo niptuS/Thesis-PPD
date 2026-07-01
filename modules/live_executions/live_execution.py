@@ -171,6 +171,13 @@ class LiveExecutionEngine:
         self._pcap_path = os.path.join(pcap_dir, f"{exp_id}_{run_ts}.pcap")
         self._meta_path = os.path.join(meta_dir, f"{exp_id}_{run_ts}_metadata.json")
         self._flows_path = os.path.join(flows_dir, f"{exp_id}_{run_ts}_flows.csv")
+        self._pcap_max_size_kb = getattr(config, "pcap_max_size_kb", 512000)
+        if isinstance(self._pcap_max_size_kb, str):
+            try:
+                self._pcap_max_size_kb = int(self._pcap_max_size_kb)
+            except ValueError:
+                self._pcap_max_size_kb = 512000
+        self._log(f"PCAP max size: {self._pcap_max_size_kb} KB ({self._pcap_max_size_kb // 1024} MB)", "INFO")
 
         duration_str = getattr(config, "planned_duration", "00:30:00")
         self._planned_s = self._parse_duration(duration_str)
@@ -320,13 +327,15 @@ class LiveExecutionEngine:
                 self._fired = len(sorted_events)
 
             self._stop_capture()
-            time.sleep(0.5)
+            # wait for PCAP to flush to disk
+            time.sleep(2)
+            self._log("Procesando capturas…", "INFO")
 
             # NFStream
             pcap_files = self._find_pcap_files()
             if pcap_files:
                 total_size = sum(os.path.getsize(f) for f in pcap_files)
-                if total_size > 24:
+                if total_size > 0:
                     self._extract_flows(pcap_files)
                 else:
                     self._log(f"PCAP vacío ({total_size} bytes)", "WARN")
@@ -402,6 +411,20 @@ class LiveExecutionEngine:
             self._capture_ok = False
             return
 
+        # ensure output directories exist with write permissions
+        self._pcap_path = os.path.abspath(self._pcap_path)
+        self._flows_path = os.path.abspath(self._flows_path)
+        self._meta_path = os.path.abspath(self._meta_path)
+        for d in (os.path.dirname(self._pcap_path),
+                  os.path.dirname(self._flows_path),
+                  os.path.dirname(self._meta_path)):
+            os.makedirs(d, exist_ok=True)
+            try:
+                os.chmod(d, 0o777)
+            except OSError:
+                pass
+
+
         tool = self._find_capture_tool()
         if not tool:
             self._log(
@@ -415,11 +438,22 @@ class LiveExecutionEngine:
         tool_name = os.path.basename(tool).lower().replace(".exe", "")
         self._log(f"Herramienta de captura: {tool_name} ({tool})", "INFO")
 
+        # on Linux, prepend sudo if not root (capture needs raw sockets)
+        need_sudo = False
+        if os.name != "nt" and os.geteuid() != 0:
+            need_sudo = True
+            self._log("Captura requiere sudo (se pedirá password)", "INFO")
+
         try:
             if "tcpdump" in tool_name:
-                cmd = [tool, "-i", self._iface, "-w", self._pcap_path, "-U"]
+                cmd = [
+                    tool, "-i", self._iface,
+                    "-w", self._pcap_path,
+                    "-U",
+                    "-B", "4096",
+                    "--immediate-mode",
+                ]
                 if self._pcap_max_size_kb > 0:
-                    # -C = size in MB for tcpdump
                     size_mb = max(1, self._pcap_max_size_kb // 1024)
                     cmd.extend(["-C", str(size_mb)])
             elif "tshark" in tool_name:
@@ -432,6 +466,10 @@ class LiveExecutionEngine:
                     cmd.extend(["-b", f"filesize:{self._pcap_max_size_kb}"])
             else:
                 cmd = [tool, "-i", self._iface, "-w", self._pcap_path]
+
+            # prepend sudo on Linux if not root
+            if need_sudo:
+                cmd = ["sudo", "-n"] + cmd
 
             self._log(f"Comando: {' '.join(cmd)}", "INFO")
             self._pcap_proc = subprocess.Popen(
@@ -737,6 +775,49 @@ class LiveExecutionEngine:
                     pass
         return row
 
+    def _collect_rotated_pcaps(self) -> list:
+        """Collect all PCAP files created by rotation."""
+        pcap_dir = os.path.dirname(self._pcap_path)
+        base = os.path.basename(self._pcap_path).rsplit(".", 1)[0]
+        files = []
+        try:
+            for f in sorted(os.listdir(pcap_dir)):
+                full = os.path.join(pcap_dir, f)
+                if not os.path.isfile(full):
+                    continue
+                if f.startswith(base) and any(
+                    f.endswith(ext) for ext in (".pcap", ".pcapng")
+                ):
+                    files.append(full)
+        except OSError:
+            pass
+        if not files and os.path.exists(self._pcap_path):
+            files.append(self._pcap_path)
+        return files
+
+    def _fix_output_permissions(self) -> None:
+        """On Linux, fix file ownership if created by sudo."""
+        if os.name == "nt":
+            return
+        sudo_user = os.environ.get("SUDO_USER", "")
+        if not sudo_user:
+            return
+        import pwd
+        try:
+            pw = pwd.getpwnam(sudo_user)
+            uid, gid = pw.pw_uid, pw.pw_gid
+            for path in [self._pcap_path, self._flows_path, self._meta_path]:
+                if os.path.exists(path):
+                    os.chown(path, uid, gid)
+            # also fix rotated pcaps
+            for f in self._collect_rotated_pcaps():
+                try:
+                    os.chown(f, uid, gid)
+                except OSError:
+                    pass
+        except (KeyError, OSError):
+            pass
+
     def _classify_flow(self, src_ip: str, dst_ip: str) -> tuple[str, str, str]:
         """Returns (src_role, dst_role, flow_label)."""
         src_role = self._device_map.get(src_ip, "external")
@@ -805,6 +886,7 @@ class LiveExecutionEngine:
                 f"→ {os.path.basename(self._flows_path)}",
                 "OK",
             )
+            self._fix_output_permissions()
             return True
         except Exception as exc:  # pylint: disable=broad-exception-caught
             self._log(f"NFStream falló: {exc}", "WARN")

@@ -25,6 +25,7 @@ class AttackDef:
     requires_root: bool = True
     recommended_dur_s: int = 30   # recommended duration in seconds
     # local Python fallback (when no Kali available)
+    continuous:     bool = False  # True = needs duration to stop (floods, MITM)
     local_fallback: str = ""    # Python module function path, empty = no local fallback
 
     def build_command(self, target_ip: str, *, duration: int = 30,

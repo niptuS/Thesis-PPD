@@ -8,6 +8,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     # ── DoS / Flooding ──────────────────────────────────────
     AttackDef(
         name="syn_flood",
+        continuous=True,
         recommended_dur_s=30,
         description="SYN flood",
         mitre_ref="T1498.001",
@@ -17,6 +18,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="dos_http",
+        continuous=True,
         recommended_dur_s=60,
         description="HTTP Slowloris",
         mitre_ref="T1499.001",
@@ -27,6 +29,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="udp_flood",
+        continuous=True,
         recommended_dur_s=30,
         description="UDP flood",
         mitre_ref="T1498.001",
@@ -36,6 +39,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="icmp_flood",
+        continuous=True,
         recommended_dur_s=30,
         description="ICMP flood (ping of death)",
         mitre_ref="T1498.001",
@@ -77,6 +81,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     # ── MITM ────────────────────────────────────────────────
     AttackDef(
         name="arp_spoof",
+        continuous=True,
         recommended_dur_s=60,
         description="ARP spoofing",
         mitre_ref="T1557.002",
@@ -86,6 +91,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="arp_spoof_ettercap",
+        continuous=True,
         recommended_dur_s=60,
         description="MITM con Ettercap",
         mitre_ref="T1557.002",
@@ -129,6 +135,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     # ── IoT Specific ────────────────────────────────────────
     AttackDef(
         name="mqtt_flood",
+        continuous=True,
         recommended_dur_s=30,
         description="MQTT flood",
         mitre_ref="T1498",
@@ -139,6 +146,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="tcp_flood",
+        continuous=True,
         recommended_dur_s=30,
         description="TCP flood",
         mitre_ref="T1498.001",
@@ -148,6 +156,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="ping_flood",
+        continuous=True,
         recommended_dur_s=30,
         description="Ping flood",
         mitre_ref="T1498.001",
@@ -157,6 +166,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="coap_flood",
+        continuous=True,
         recommended_dur_s=30,
         description="CoAP flood",
         mitre_ref="T1498",
@@ -171,6 +181,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="deauth_wifi",
+        continuous=True,
         recommended_dur_s=30,
         description="WiFi deauthentication",
         mitre_ref="T1498",
@@ -203,12 +214,22 @@ def get_attack_categories() -> list[str]:
 
 
 def get_attack_info_list() -> list[dict]:
-    """For overlay display."""
-    return [
+    """For overlay display — includes native attacks + plugins."""
+    result = [
         {"name": a.name, "description": a.description,
-         "mitre_re": a.mitre_ref, "tool": a.tool, "category": a.category}
+         "mitre_ref": a.mitre_ref, "tool": a.tool, "category": a.category}
         for a in ATTACK_LIBRARY
     ]
+    # add plugin attacks
+    plugins = get_plugin_attacks()
+    if plugins:
+        for p in plugins:
+            result.append({
+                "name": p.name, "description": p.description,
+                "mitre_ref": p.mitre_ref, "tool": p.tool,
+                "category": f"plugin:{p.category}",
+            })
+    return result
 
 def get_plugin_attacks(auto_install: bool = True, log_callback=None):
     global _PLUGIN_ATTACKS, _PLUGIN_STATUSES
