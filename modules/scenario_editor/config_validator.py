@@ -13,6 +13,11 @@ _VALID_INTENSITIES = {"low", "medium", "high"}
 _VALID_EVENT_TYPES = {"benign", "attack"}
 
 
+"""
+Entrada: config (ScenarioConfig)
+Salida: list[str]
+Descripción: Validates a scenario config and returns a list of error messages.
+"""
 def validate_scenario(config: ScenarioConfig) -> list[str]:
     errors: list[str] = []
 

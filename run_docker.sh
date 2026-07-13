@@ -1,7 +1,7 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-# SH-DATASET — Ejecucion Docker (portabilidad/reproducibilidad)
-# Requiere: Docker + Docker Compose
+# SH-DATASET — Docker execution (portability/reproducibility)
+# Requires: Docker + Docker Compose
 # ═══════════════════════════════════════════════════════════════
 echo ""
 echo "  SH-DATASET Docker"
@@ -10,22 +10,22 @@ echo ""
 
 # Check Docker
 if ! command -v docker &>/dev/null; then
-    echo "[ERROR] Docker no encontrado. Instalar: https://docs.docker.com/get-docker/"
+    echo "[ERROR] Docker not found. Install: https://docs.docker.com/get-docker/"
     exit 1
 fi
 
 # Detect OS for network note
 if [[ "$(uname)" == "Linux" ]]; then
-    echo "  Modo: Linux — --net=host expone interfaces reales del host"
+    echo "  Mode: Linux — --net=host exposes real host interfaces"
 else
-    echo "  NOTA: En Docker Desktop (Mac) las interfaces mostradas"
-    echo "        son de la VM interna. Para captura real, usar: ./run.sh"
+    echo "  NOTE: On Docker Desktop (Mac) the displayed interfaces"
+    echo "        belong to the internal VM. For real capture, use: ./run.sh"
 fi
 echo ""
 
-echo "Construyendo imagen..."
+echo "Building image..."
 docker compose build --quiet 2>/dev/null || docker-compose build --quiet 2>/dev/null
 
-echo "Iniciando contenedor interactivo..."
+echo "Starting interactive container..."
 echo ""
 docker compose run --rm sh-dataset 2>/dev/null || docker-compose run --rm sh-dataset 2>/dev/null

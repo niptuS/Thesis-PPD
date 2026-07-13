@@ -23,9 +23,19 @@ class CsvSchemaError(ValueError):
 
 class MetadataCsvReader:
 
+    """
+    Entrada: input_path (str | Path)
+    Salida: None
+    Descripción: Initializes the reader bound to a metadata CSV file.
+    """
     def __init__(self, input_path: str | Path) -> None:
         self._path = Path(input_path)
 
+    """
+    Entrada: None
+    Salida: dict[str, str]
+    Descripción: Reads metadata header comments into a key-value dictionary.
+    """
     def read_header_comments(self) -> dict[str, str]:
         meta: dict[str, str] = {}
         with self._path.open("r", encoding=CSV_ENCODING) as fh:
@@ -39,6 +49,11 @@ class MetadataCsvReader:
                     meta[key] = val
         return meta
 
+    """
+    Entrada: None
+    Salida: Generator[MetadataRow, None, None]
+    Descripción: Iterates over metadata rows, validating columns and skipping malformed rows.
+    """
     def iter_rows(self) -> Generator[MetadataRow, None, None]:
         with self._path.open("r", encoding=CSV_ENCODING) as fh:
             non_comment = (ln for ln in fh if not ln.startswith(_COMMENT_PREFIX))
@@ -50,14 +65,29 @@ class MetadataCsvReader:
                 except (ValueError, KeyError) as exc:
                     logger.warning("skipping malformed row=%d error=%s", i + 1, exc)
 
+    """
+    Entrada: None
+    Salida: list[MetadataRow]
+    Descripción: Returns all metadata rows as a list.
+    """
     def read_all(self) -> list[MetadataRow]:
         return list(self.iter_rows())
 
+    """
+    Entrada: fieldnames (list[str])
+    Salida: None
+    Descripción: Validates that the CSV header contains all expected columns.
+    """
     def _validate_columns(self, fieldnames: list[str]) -> None:
         missing = set(ROW_FIELDS) - set(fieldnames)
         if missing:
             raise CsvSchemaError(f"missing columns: {sorted(missing)}")
 
+    """
+    Entrada: raw (dict[str, str])
+    Salida: MetadataRow
+    Descripción: Converts a raw CSV row dict into a MetadataRow instance.
+    """
     def _parse_row(self, raw: dict[str, str]) -> MetadataRow:
         return MetadataRow(
             row_id=int(raw["row_id"]),

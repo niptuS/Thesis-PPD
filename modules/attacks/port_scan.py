@@ -9,6 +9,11 @@ class PortScanAttack(BaseAttack):
     description = "TCP port scanning — reconnaissance of open services"
     mitre_ref = "T1046"
 
+    """
+    Entrada: target_ip (str), duration_s (int), intensity (str), port_range (str), **kwargs
+    Salida: AttackResult
+    Descripción: Runs TCP port scanning using nmap for service reconnaissance.
+    """
     def run(self, target_ip: str, duration_s: int = 60, intensity: str = "medium",
             port_range: str = "1-1024", **kwargs) -> AttackResult:
         if not self.validate(target_ip):

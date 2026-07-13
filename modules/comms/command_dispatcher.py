@@ -25,27 +25,50 @@ class DispatchResult:
 class CommandDispatcher:
     """Routes action definitions to the appropriate communication client."""
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Initializes the dispatcher with empty client registries.
+    """
     def __init__(self) -> None:
-        self._ssh_clients: dict[str, SSHClient] = {}   # ip → client
-        self._http_clients: dict[str, HTTPClient] = {}  # ip → client
+        self._ssh_clients: dict[str, SSHClient] = {}
+        self._http_clients: dict[str, HTTPClient] = {}
         self._mqtt_client: MQTTClient | None = None
 
+    """
+    Entrada: ip (str), client (SSHClient)
+    Salida: None
+    Descripción: Registers an SSH client for the given target IP.
+    """
     def register_ssh(self, ip: str, client: SSHClient) -> None:
         self._ssh_clients[ip] = client
 
+    """
+    Entrada: ip (str), client (HTTPClient)
+    Salida: None
+    Descripción: Registers an HTTP client for the given target IP.
+    """
     def register_http(self, ip: str, client: HTTPClient) -> None:
         self._http_clients[ip] = client
 
+    """
+    Entrada: client (MQTTClient)
+    Salida: None
+    Descripción: Sets the shared MQTT client used for MQTT dispatch.
+    """
     def set_mqtt(self, client: MQTTClient) -> None:
         self._mqtt_client = client
 
+    """
+    Entrada: action (ActionDefinition), target_ip (str), params (dict | None), device_id (str)
+    Salida: DispatchResult
+    Descripción: Execute an action on a target device.
+    """
     def dispatch(self, action: ActionDefinition, target_ip: str,
                  params: dict | None = None, device_id: str = "") -> DispatchResult:
-        """Execute an action on a target device."""
         params = params or {}
         params["device_id"] = device_id or target_ip.replace(".", "_")
 
-        # resolve templates
         endpoint = self._resolve(action.endpoint, params)
         payload = self._resolve(action.payload, params)
 
@@ -61,11 +84,15 @@ class CommandDispatcher:
             return DispatchResult(success=False, protocol=protocol,
                                   error=f"unsupported protocol: {protocol}")
 
+    """
+    Entrada: ip (str), method (str), endpoint (str), payload (str)
+    Salida: DispatchResult
+    Descripción: Dispatches an HTTP request to the client for the given IP.
+    """
     def _dispatch_http(self, ip: str, method: str, endpoint: str,
                        payload: str) -> DispatchResult:
         client = self._http_clients.get(ip)
         if client is None:
-            # auto-create with defaults
             client = HTTPClient(base_url=f"http://{ip}")
             self._http_clients[ip] = client
         result = client.request(method, endpoint, payload)
@@ -75,6 +102,11 @@ class CommandDispatcher:
             error=result.error,
         )
 
+    """
+    Entrada: method (str), topic (str), payload (str)
+    Salida: DispatchResult
+    Descripción: Dispatches an MQTT publish to the shared MQTT client.
+    """
     def _dispatch_mqtt(self, method: str, topic: str, payload: str) -> DispatchResult:
         if self._mqtt_client is None:
             return DispatchResult(success=False, protocol="mqtt", error="MQTT not connected")
@@ -84,6 +116,11 @@ class CommandDispatcher:
                                   detail=f"PUB {topic}", error=result.error)
         return DispatchResult(success=False, protocol="mqtt", error=f"unsupported method: {method}")
 
+    """
+    Entrada: ip (str), command (str)
+    Salida: DispatchResult
+    Descripción: Dispatches an SSH command to the client registered for the given IP.
+    """
     def _dispatch_ssh(self, ip: str, command: str) -> DispatchResult:
         client = self._ssh_clients.get(ip)
         if client is None:
@@ -96,6 +133,11 @@ class CommandDispatcher:
             error=result.error or result.stderr[:200],
         )
 
+    """
+    Entrada: template (str), params (dict)
+    Salida: str
+    Descripción: Resolves {key} placeholders in the template using params.
+    """
     @staticmethod
     def _resolve(template: str, params: dict) -> str:
         result = template
@@ -103,6 +145,11 @@ class CommandDispatcher:
             result = result.replace(f"{{{k}}}", str(v))
         return result
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Closes all registered SSH and MQTT clients.
+    """
     def close_all(self) -> None:
         for c in self._ssh_clients.values():
             c.close()

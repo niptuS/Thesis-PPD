@@ -10,6 +10,11 @@ class ConfigWriteError(Exception):
     pass
 
 
+"""
+Entrada: config (ScenarioConfig), path (str | Path)
+Salida: None
+Descripción: Serializes a scenario config to a JSON file at the given path.
+"""
 def save_scenario(config: ScenarioConfig, path: str | Path) -> None:
     output_path = Path(path)
     if output_path.suffix.lower() != ".json":

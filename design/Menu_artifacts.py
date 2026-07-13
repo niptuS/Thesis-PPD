@@ -1,10 +1,21 @@
-"""Artifacts — browse capture files + view PCAP/CSV contents."""
+"""
+Entrada: None
+Salida: Section
+Descripción: Artifacts — browse capture files + view PCAP/CSV contents.
+"""
 from __future__ import annotations
 from design.models import Section
+from modules.i18n import t
 
 PAGE_SIZE = 18
 
 
+"""
+Entrada: files, file_cursor, view_mode, packets, packet_cursor, packet_page,
+         csv_headers, csv_rows, csv_cursor, csv_page, current_file, error
+Salida: Section
+Descripción: Builds the artifacts section with localized labels and hints.
+"""
 def build_artifacts_section(
     files=None, file_cursor=0,
     view_mode="files",
@@ -18,9 +29,9 @@ def build_artifacts_section(
         content.append("─── Capture Files ────────────────────────────────────")
         fl = files or []
         if not fl:
-            content.append("  (sin archivos — ejecute un escenario primero)")
+            content.append(f"  {t('artifacts', 'no_files_run')}")
         else:
-            content.append(f"  {'':2} {'Archivo':<35} {'Tipo':<6} {'Tamaño':<10}")
+            content.append(f"  {'':2} {t('artifacts', 'file'):<35} {t('artifacts', 'type'):<6} {t('artifacts', 'size'):<10}")
             content.append("  " + "─" * 55)
             for i, f in enumerate(fl):
                 marker = "►" if i == file_cursor else " "
@@ -32,7 +43,7 @@ def build_artifacts_section(
         if error:
             content.append(f"  Error: {error}")
         elif not pkt:
-            content.append("  (sin paquetes)")
+            content.append(f"  {t('artifacts', 'no_packets')}")
         else:
             content.append(
                 f"  {'':2} {'#':<6} {'Time':<9} {'Source':<16} {'Dest':<16} {'Proto':<7} {'Len':<6} {'Ports':<12} {'Flags'}")
@@ -47,7 +58,7 @@ def build_artifacts_section(
                 content.append(
                     f"  {marker} {p.no:<6} {p.time:<9} {p.src_ip:<16} {p.dst_ip:<16} {p.protocol:<7} {p.length:<6} {ports:<12} {p.flags[:10]}")
             if tp > 1:
-                content.append(f"  Pág {pg+1}/{tp} ({s+1}-{e} de {total})")
+                content.append(f"  {t('artifacts', 'page')} {pg+1}/{tp} ({s+1}-{e} of {total})")
 
     elif view_mode == "csv":
         content.append(f"─── {current_file} ─────────────────────────────")
@@ -56,7 +67,7 @@ def build_artifacts_section(
         if error:
             content.append(f"  Error: {error}")
         elif not rows:
-            content.append("  (sin datos)")
+            content.append(f"  {t('artifacts', 'no_data')}")
         else:
             key_cols = ["src_ip", "dst_ip", "ip.src", "ip.dst", "src_role",
                         "dst_role", "flow_label", "Protocol", "frame.len"]
@@ -75,9 +86,9 @@ def build_artifacts_section(
                 vals = [(row[j][:13] if j < len(row) else "") for j in ci]
                 content.append(f"  {marker} " + " ".join(f"{v:<14}" for v in vals))
             if tp > 1:
-                content.append(f"  Pág {pg+1}/{tp} ({s+1}-{e} de {total})")
+                content.append(f"  {t('artifacts', 'page')} {pg+1}/{tp} ({s+1}-{e} of {total})")
 
-    hint = "Enter=abrir · R=refrescar · ↑↓=navegar" if view_mode == "files" else "Esc=volver · ↑↓·PgUp/PgDn=navegar"
+    hint = t("artifacts", "hint_files") if view_mode == "files" else t("artifacts", "hint_detail")
     return Section(key="artifacts", label="Artifacts", hint=hint,
                    content_lines=content, actions=[], field_map=[])
 

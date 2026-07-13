@@ -3,11 +3,13 @@ from modules.attacks.base import AttackDef
 ATTACK_DEFS = [
     AttackDef(
         name="scapy_syn_flood",
+        kill_chain="Actions on Objectives",
+        subcategory="denial_of_service",
         description="SYN flood con Scapy",
         mitre_ref="T1498.001",
         tool="python/scapy",
         category="dos",
-        command="",              # sin comando de sistema
+        command="",
         local_fallback="plugins.attacks.scapy_syn_flood:run",
         requires_root=True,
         continuous=True,
@@ -15,6 +17,12 @@ ATTACK_DEFS = [
     )
 ]
 
+"""
+Entrada: target_ip (str), port (int), duration (int), **kwargs
+Salida: dict
+Descripción: Scapy-based SYN flood attack. Sends SYN packets to the target IP
+             and port for the specified duration and returns a summary dict.
+"""
 def run(target_ip: str, port: int = 80, duration: int = 30, **kwargs):
     from scapy.all import IP, TCP, send, RandShort
     import time

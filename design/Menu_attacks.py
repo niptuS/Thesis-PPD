@@ -1,11 +1,23 @@
+"""
+Entrada: None
+Salida: Section
+Descripción: Builds the Attack Library section showing native attacks grouped
+             by category plus any loaded plugin attacks, with detail view.
+"""
 from __future__ import annotations
 from design.models import Section
+from modules.i18n import t
 from modules.attacks import ATTACK_LIBRARY, get_plugin_attacks, get_plugin_statuses
 from modules.attacks.base import AttackDef
 
 PAGE_SIZE = 14
 
 
+"""
+Entrada: cursor (int), tool_status (dict|None), scan_mode (str)
+Salida: Section
+Descripción: Builds the attacks section with localized labels and hints.
+"""
 def build_attacks_section(
     cursor: int = 0,
     tool_status: dict[str, bool] | None = None,
@@ -13,7 +25,6 @@ def build_attacks_section(
 ) -> Section:
     status = tool_status or {}
 
-    # ── Separar nativos de plugins ──────────────────────────────
     native  = ATTACK_LIBRARY
     try:
         plugins = get_plugin_attacks() or [] if cursor is not None else []
@@ -24,14 +35,13 @@ def build_attacks_section(
     total = len(all_attacks)
 
     content: list[str] = [
-        f"─── Attack Library ({len(native)} nativos · {len(plugins)} plugins) ───",
-        f"  Verificación: {scan_mode}",
+        f"─── {t('attacks', 'natives_plugins', len(native), len(plugins))} ───",
+        f"  {t('common', 'verification')}: {scan_mode}",
         "",
     ]
 
     flat_list: list[AttackDef] = []
 
-    # ── Bloque nativos ──────────────────────────────────────────
     categories: dict[str, list[AttackDef]] = {}
     for a in native:
         categories.setdefault(a.category, []).append(a)
@@ -49,13 +59,11 @@ def build_attacks_section(
             flat_list.append(a)
         content.append("")
 
-    # ── Separador visual de plugins ─────────────────────────────
     if plugins:
-        content.append("  ══ PLUGINS ══════════════════════════════════")
+        content.append(f"  ══ {t('attacks', 'plugins')} ══════════════════════════════════")
 
         plugin_cats: dict[str, list[AttackDef]] = {}
         for a in plugins:
-            # quitar el prefijo "plugin:" para mostrar
             clean_cat = a.category.removeprefix("plugin:")
             plugin_cats.setdefault(clean_cat, []).append(a)
 
@@ -64,7 +72,6 @@ def build_attacks_section(
             for a in plugin_cats[cat]:
                 idx = len(flat_list)
                 marker = "►" if idx == cursor else " "
-                # para plugins: tool puede ser "python/scapy" — siempre disponible si cargó
                 st = "✓"
                 content.append(
                     f"  {marker} [P✓] {a.name:<18} {a.tool:<12} {a.description[:30]}"
@@ -72,46 +79,50 @@ def build_attacks_section(
                 flat_list.append(a)
             content.append("")
 
-    # ── Panel de detalle del item seleccionado ──────────────────
     if flat_list and 0 <= cursor < len(flat_list):
         sel = flat_list[cursor]
         is_plugin = sel.category.startswith("plugin:")
         avail = status.get(sel.tool)
         if is_plugin:
-            avail_str = "Plugin cargado ✓"
+            avail_str = f"{t('attacks', 'plugin_loaded')} ✓"
         else:
-            avail_str = "Disponible ✓" if avail is True else "No encontrado ✗" if avail is False else "Sin verificar"
+            avail_str = (f"{t('attacks', 'available')} ✓" if avail is True
+                         else f"{t('attacks', 'not_found')} ✗" if avail is False
+                         else t("attacks", "not_verified"))
 
         content.append(f"─── {sel.name} {'[PLUGIN]' if is_plugin else ''} {'─' * 30}")
-        content.append(f"  Tool        : {sel.tool}  ({avail_str})")
-        content.append(f"  MITRE       : {sel.mitre_ref}")
+        content.append(f"  {t('attacks', 'tool'):<12}: {sel.tool}  ({avail_str})")
+        content.append(f"  {t('attacks', 'mitre'):<12}: {sel.mitre_ref}")
         clean_cat = sel.category.removeprefix("plugin:")
-        content.append(f"  Category    : {clean_cat}{'  · Plugin externo' if is_plugin else ''}")
+        content.append(f"  {t('attacks', 'category'):<12}: {clean_cat}{'  · External plugin' if is_plugin else ''}")
         if sel.continuous:
             dur_min = sel.recommended_dur_s // 60
             dur_sec = sel.recommended_dur_s % 60
             dur_str = f"{dur_min}m {dur_sec}s" if dur_min else f"{dur_sec}s"
-            content.append(f"  Duración    : {dur_str} recomendado (continuo)")
+            content.append(f"  {t('attacks', 'duration'):<12}: {dur_str} {t('attacks', 'continuous')}")
         else:
-            content.append(f"  Duración    : automática (termina solo)")
-        content.append(f"  Root        : {'Sí' if sel.requires_root else 'No'}")
+            content.append(f"  {t('attacks', 'duration'):<12}: {t('attacks', 'automatic')}")
+        content.append(f"  {t('attacks', 'root'):<12}: {t('attacks', 'yes') if sel.requires_root else t('attacks', 'no')}")
         if is_plugin and sel.local_fallback:
-            content.append(f"  Función     : {sel.local_fallback}")
+            content.append(f"  {t('attacks', 'function'):<12}: {sel.local_fallback}")
         else:
-            content.append(f"  Comando     : {sel.command}")
+            content.append(f"  {t('attacks', 'command'):<12}: {sel.command}")
 
     n_ok    = sum(1 for v in status.values() if v is True)
     n_fail  = sum(1 for v in status.values() if v is False)
     tools_total = len(set(a.tool for a in native))
 
+    hint_parts = [
+        f"V=verify · P=plugins · ↑↓=navigate · Tools: {n_ok}/{tools_total} available"
+    ]
+    if n_fail:
+        hint_parts.append(f" · {n_fail} not found")
+    if plugins:
+        hint_parts.append(f" · {len(plugins)} plugin(s)")
+
     return Section(
         key="attacks", label="Attack Library",
-        hint=(
-            "V=verificar · P=ver plugins · ↑↓=navegar · "
-            f"Tools: {n_ok}/{tools_total} disponibles"
-            + (f" · {n_fail} no encontradas" if n_fail else "")
-            + (f" · {len(plugins)} plugin(s)" if plugins else "")
-        ),
+        hint="".join(hint_parts),
         content_lines=content, actions=[], field_map=[],
     )
 

@@ -13,6 +13,11 @@ class ConfigLoadError(Exception):
     pass
 
 
+"""
+Entrada: raw (dict)
+Salida: OutputConfig
+Descripción: Parses an output configuration dictionary.
+"""
 def _parse_output(raw: dict) -> OutputConfig:
     return OutputConfig(
         folder=raw["folder"],
@@ -23,6 +28,11 @@ def _parse_output(raw: dict) -> OutputConfig:
     )
 
 
+"""
+Entrada: raw (dict)
+Salida: DeviceConfig
+Descripción: Parses a device configuration dictionary.
+"""
 def _parse_device(raw: dict) -> DeviceConfig:
     return DeviceConfig(
         id=raw["id"],
@@ -34,6 +44,11 @@ def _parse_device(raw: dict) -> DeviceConfig:
     )
 
 
+"""
+Entrada: raw (dict)
+Salida: BenignProfile
+Descripción: Parses a benign profile configuration dictionary.
+"""
 def _parse_benign(raw: dict) -> BenignProfile:
     return BenignProfile(
         id=raw["id"],
@@ -46,6 +61,11 @@ def _parse_benign(raw: dict) -> BenignProfile:
     )
 
 
+"""
+Entrada: raw (dict)
+Salida: AttackModule
+Descripción: Parses an attack module configuration dictionary.
+"""
 def _parse_attack(raw: dict) -> AttackModule:
     return AttackModule(
         id=raw["id"],
@@ -59,6 +79,11 @@ def _parse_attack(raw: dict) -> AttackModule:
     )
 
 
+"""
+Entrada: raw (dict)
+Salida: TimelineEvent
+Descripción: Parses a timeline event dictionary.
+"""
 def _parse_event(raw: dict) -> TimelineEvent:
     return TimelineEvent(
         timestamp=raw["timestamp"],
@@ -70,6 +95,11 @@ def _parse_event(raw: dict) -> TimelineEvent:
     )
 
 
+"""
+Entrada: path (str | Path)
+Salida: ScenarioConfig
+Descripción: Loads and validates a scenario JSON file into a ScenarioConfig.
+"""
 def load_scenario(path: str | Path) -> ScenarioConfig:
     scenario_path = Path(path)
     if not scenario_path.exists():

@@ -12,8 +12,12 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+"""
+Entrada: iface_name (str)
+Salida: str
+Descripción: Detect the host machine's primary IPv4 address.
+"""
 def get_host_ip(iface_name: str = "") -> str:
-    """Detect the host machine's primary IPv4 address."""
     try:
         if iface_name and _HAS_PSUTIL:
             addrs = psutil.net_if_addrs().get(iface_name, [])
@@ -30,8 +34,12 @@ def get_host_ip(iface_name: str = "") -> str:
         return "127.0.0.1"
 
 
+"""
+Entrada: None
+Salida: str
+Descripción: Get the host machine's MAC address.
+"""
 def get_host_mac() -> str:
-    """Get the host machine's MAC address."""
     try:
         mac_int = uuid.getnode()
         mac = ":".join(
@@ -44,8 +52,12 @@ def get_host_mac() -> str:
         return "00:00:00:00:00:00"
 
 
+"""
+Entrada: None
+Salida: str
+Descripción: Get the host machine's hostname.
+"""
 def get_host_hostname() -> str:
-    """Get the host machine's hostname."""
     try:
         return socket.gethostname()
     except (OSError, socket.error) as exc:

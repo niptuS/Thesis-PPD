@@ -1,6 +1,8 @@
 """
-PCAP/CSV Viewer — reads capture files and extracts packet/flow data.
-Uses tshark for PCAPs, csv module for CSVs.
+Entrada: None
+Salida: pcap_viewer module
+Descripción: PCAP/CSV Viewer — reads capture files and extracts packet/flow data.
+             Uses tshark for PCAPs, csv module for CSVs.
 """
 from __future__ import annotations
 import csv
@@ -33,9 +35,9 @@ def read_pcap(path: str, max_packets: int = 500) -> tuple[list[PacketRow], str]:
             tshark = p
             break
     if not tshark:
-        return [], "tshark no encontrado (instalar Wireshark)"
+        return [], "tshark not found (install Wireshark)"
     if not os.path.exists(path):
-        return [], f"Archivo no encontrado: {path}"
+        return [], f"File not found: {path}"
 
     try:
         cmd = [
@@ -60,7 +62,7 @@ def read_pcap(path: str, max_packets: int = 500) -> tuple[list[PacketRow], str]:
 
         packets = []
         lines = result.stdout.strip().split("\n")
-        for line in lines[1:]:  # skip header
+        for line in lines[1:]:
             cols = line.split("|")
             if len(cols) < 6:
                 continue
@@ -86,7 +88,7 @@ def read_pcap(path: str, max_packets: int = 500) -> tuple[list[PacketRow], str]:
 def read_csv_file(path: str, max_rows: int = 500) -> tuple[list[str], list[list[str]], str]:
     """Read CSV file. Returns (headers, rows, error)."""
     if not os.path.exists(path):
-        return [], [], f"Archivo no encontrado: {path}"
+        return [], [], f"File not found: {path}"
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             reader = csv.reader(f)

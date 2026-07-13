@@ -10,16 +10,25 @@ class AttackerProfile:
     ssh_user: str = "kali"
     ssh_port: int = 22
     ssh_key: str = ""
-    ssh_password: str = ""   # runtime only
+    ssh_password: str = ""
 
+    """
+    Entrada: None
+    Salida: dict
+    Descripción: Converts the attacker profile to a dictionary.
+    """
     def to_dict(self) -> dict:
-        # NEVER include password
         return {
             "device_ip": self.device_ip, "tag": self.tag,
             "mode": self.mode, "ssh_user": self.ssh_user,
             "ssh_port": self.ssh_port, "ssh_key": self.ssh_key,
         }
 
+    """
+    Entrada: d (dict)
+    Salida: AttackerProfile
+    Descripción: Builds an AttackerProfile from a dictionary.
+    """
     @classmethod
     def from_dict(cls, d: dict) -> "AttackerProfile":
         return cls(
@@ -28,14 +37,29 @@ class AttackerProfile:
             ssh_port=d.get("ssh_port", 22), ssh_key=d.get("ssh_key", ""),
         )
 
+    """
+    Entrada: None
+    Salida: str
+    Descripción: Returns a display label (tag or device IP).
+    """
     @property
     def label(self) -> str:
         return self.tag or self.device_ip
 
+    """
+    Entrada: None
+    Salida: bool
+    Descripción: Returns True if the attacker runs locally.
+    """
     @property
     def is_local(self) -> bool:
         return self.mode == "local"
 
+    """
+    Entrada: None
+    Salida: bool
+    Descripción: Returns True if SSH credentials (password or key) are configured.
+    """
     @property
     def has_credentials(self) -> bool:
         return bool(self.ssh_password) or bool(self.ssh_key)

@@ -10,24 +10,34 @@ from dataclasses import dataclass, field, asdict
 @dataclass
 class ActionParam:
     name: str
-    type: str = "str"       # str, int, float, bool
+    type: str = "str"
     default: str = ""
     required: bool = False
 
 
 @dataclass
 class ActionDefinition:
-    name: str                      # e.g. "turn_on"
+    name: str
     description: str = ""
-    protocol: str = "http"             # http, mqtt, coap, ssh
-    method: str = "POST"             # HTTP method or MQTT topic prefix
-    endpoint: str = ""                 # e.g. "/api/light/on" or MQTT topic
-    payload: str = ""                 # template with {param} placeholders
+    protocol: str = "http"
+    method: str = "POST"
+    endpoint: str = ""
+    payload: str = ""
     params: list[ActionParam] = field(default_factory=list)
 
+    """
+    Entrada: None
+    Salida: dict
+    Descripción: Converts the action definition to a dictionary.
+    """
     def to_dict(self) -> dict:
         return asdict(self)
 
+    """
+    Entrada: d (dict)
+    Salida: ActionDefinition
+    Descripción: Builds an ActionDefinition from a dictionary.
+    """
     @classmethod
     def from_dict(cls, d: dict) -> "ActionDefinition":
         params = [ActionParam(**p) for p in d.get("params", [])]
@@ -41,17 +51,32 @@ class ActionDefinition:
 
 @dataclass
 class BenignProfile:
-    device_type: str                              # e.g. "bulb", "plug", "camera"
+    device_type: str
     display_name: str = ""
     description: str = ""
     actions: list[ActionDefinition] = field(default_factory=list)
 
+    """
+    Entrada: None
+    Salida: list[str]
+    Descripción: Returns the list of action names defined in this profile.
+    """
     def action_names(self) -> list[str]:
         return [a.name for a in self.actions]
 
+    """
+    Entrada: name (str)
+    Salida: ActionDefinition | None
+    Descripción: Returns the action with the given name, or None if not found.
+    """
     def get_action(self, name: str) -> ActionDefinition | None:
         return next((a for a in self.actions if a.name == name), None)
 
+    """
+    Entrada: None
+    Salida: dict
+    Descripción: Converts the profile to a dictionary.
+    """
     def to_dict(self) -> dict:
         return {
             "device_type": self.device_type,
@@ -60,6 +85,11 @@ class BenignProfile:
             "actions": [a.to_dict() for a in self.actions],
         }
 
+    """
+    Entrada: d (dict)
+    Salida: BenignProfile
+    Descripción: Builds a BenignProfile from a dictionary.
+    """
     @classmethod
     def from_dict(cls, d: dict) -> "BenignProfile":
         actions = [ActionDefinition.from_dict(a) for a in d.get("actions", [])]

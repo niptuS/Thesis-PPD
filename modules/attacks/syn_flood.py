@@ -8,6 +8,11 @@ class SynFloodAttack(BaseAttack):
     description = "TCP SYN flood attack — saturates target with half-open connections"
     mitre_ref = "T1498.001"
 
+    """
+    Entrada: target_ip (str), duration_s (int), intensity (str), target_port (int), **kwargs
+    Salida: AttackResult
+    Descripción: Runs TCP SYN flood attack using Scapy.
+    """
     def run(self, target_ip: str, duration_s: int = 30, intensity: str = "medium",
             target_port: int = 80, **kwargs) -> AttackResult:
         if not self.validate(target_ip):

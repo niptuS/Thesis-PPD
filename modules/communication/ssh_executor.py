@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class SSHExecutor(BaseExecutor):
+    """
+    Entrada: host (str), user (str), port (int), key_file (str), password (str)
+    Salida: None
+    Descripción: Initializes the SSH executor with connection parameters and paramiko availability.
+    """
     def __init__(self, host: str, user: str = "kali", port: int = 22,
                  key_file: str = "", password: str = ""):
         self.host = host
@@ -21,6 +26,11 @@ class SSHExecutor(BaseExecutor):
         self.password = password
         self._use_paramiko = self._check_paramiko()
 
+    """
+    Entrada: None
+    Salida: bool
+    Descripción: Checks whether paramiko is available for SSH execution.
+    """
     @staticmethod
     def _check_paramiko() -> bool:
         try:
@@ -28,9 +38,13 @@ class SSHExecutor(BaseExecutor):
         except ImportError:
             return False
 
+    """
+    Entrada: target_ip (str), command (str), timeout (int), use_sudo (bool), **kwargs
+    Salida: ExecutionResult
+    Descripción: Execute command on remote host. If use_sudo=True, runs with sudo via PTY.
+    """
     def execute(self, target_ip: str, command: str, timeout: int = 120,
                 use_sudo: bool = False, **kwargs) -> ExecutionResult:
-        """Execute command on remote host. If use_sudo=True, runs with sudo via PTY."""
         logger.info("SSH exec: %s@%s → %s", self.user, self.host, command[:80])
         if self._use_paramiko:
             if use_sudo and self.password:
@@ -38,6 +52,11 @@ class SSHExecutor(BaseExecutor):
             return self._exec_paramiko(command, timeout)
         return self._exec_sshpass(command, timeout)
 
+    """
+    Entrada: target_ip (str)
+    Salida: tuple[bool, str]
+    Descripción: Tests SSH connectivity and returns a status flag with optional detail.
+    """
     def test_connection(self, target_ip: str = "") -> tuple[bool, str]:
         method = "paramiko" if self._use_paramiko else "sshpass"
         result = self.execute("", "echo __SSH_OK__", timeout=15)
@@ -48,8 +67,12 @@ class SSHExecutor(BaseExecutor):
             detail = f"[{method}] {detail}"
         return ok, detail
 
-    # ── paramiko normal (no sudo) ───────────────────────────────
 
+    """
+    Entrada: command (str), timeout (int)
+    Salida: ExecutionResult
+    Descripción: Executes a command via paramiko (non-sudo).
+    """
     def _exec_paramiko(self, command: str, timeout: int) -> ExecutionResult:
         start = time.time()
         try:
@@ -78,10 +101,13 @@ class SSHExecutor(BaseExecutor):
         except (OSError, IOError, TimeoutError, RuntimeError) as e:
             return ExecutionResult(success=False, error=str(e), duration=time.time() - start)
 
-    # ── paramiko with sudo via PTY ──────────────────────────────
 
+    """
+    Entrada: command (str), timeout (int)
+    Salida: ExecutionResult
+    Descripción: Run command with sudo using interactive PTY session.
+    """
     def _exec_paramiko_sudo(self, command: str, timeout: int) -> ExecutionResult:
-        """Run command with sudo using interactive PTY session."""
         start = time.time()
         try:
             import paramiko
@@ -98,33 +124,27 @@ class SSHExecutor(BaseExecutor):
                 connect_kwargs["password"] = self.password
             client.connect(**connect_kwargs)
 
-            # open interactive shell via PTY
             channel = client.get_transport().open_session()
             channel.get_pty()
             channel.invoke_shell()
             channel.settimeout(timeout)
 
             time.sleep(0.5)
-            # drain any welcome message
             if channel.recv_ready():
                 channel.recv(4096)
 
-            # send sudo su with password
             channel.send("sudo su\n")
             time.sleep(1)
-            # check if sudo asks for password
             if channel.recv_ready():
                 prompt = channel.recv(4096).decode("utf-8", errors="replace")
                 if "password" in prompt.lower():
                     channel.send(f"{self.password}\n")
                     time.sleep(1)
                     if channel.recv_ready():
-                        channel.recv(4096)  # drain response
+                        channel.recv(4096)
 
-            # now we're root — run the command
             channel.send(f"{command}\n")
 
-            # wait for command to finish or timeout
             output_chunks = []
             deadline = time.time() + timeout
             while time.time() < deadline:
@@ -135,7 +155,6 @@ class SSHExecutor(BaseExecutor):
                 if channel.exit_status_ready():
                     break
 
-            # exit sudo shell
             channel.send("exit\n")
             time.sleep(0.3)
             channel.close()
@@ -143,7 +162,6 @@ class SSHExecutor(BaseExecutor):
             elapsed = time.time() - start
 
             raw_out = "".join(output_chunks)
-            # clean control chars and prompts
             lines = raw_out.split("\n")
             clean = [ln for ln in lines
                      if not ln.startswith("[sudo]")
@@ -157,8 +175,12 @@ class SSHExecutor(BaseExecutor):
         except (OSError, IOError, TimeoutError, RuntimeError) as e:
             return ExecutionResult(success=False, error=str(e), duration=time.time() - start)
 
-    # ── sshpass fallback ────────────────────────────────────────
 
+    """
+    Entrada: command (str), timeout (int)
+    Salida: ExecutionResult
+    Descripción: Executes a command via sshpass as a paramiko fallback.
+    """
     def _exec_sshpass(self, command: str, timeout: int) -> ExecutionResult:
         start = time.time()
         if not self.password:
@@ -177,18 +199,23 @@ class SSHExecutor(BaseExecutor):
             return ExecutionResult(success=False, error=result.stderr.strip() or f"exit {result.returncode}",
                                    duration=elapsed)
         except FileNotFoundError:
-            return ExecutionResult(success=False, error="sshpass no instalado + paramiko no disponible")
+            return ExecutionResult(success=False, error="sshpass not installed + paramiko not available")
         except subprocess.TimeoutExpired:
             return ExecutionResult(success=False, error=f"timeout ({timeout}s)")
         except (OSError, IOError, TimeoutError) as e:
             return ExecutionResult(success=False, error=str(e))
 
+    """
+    Entrada: attack_name (str), target_ip (str), duration (int), intensity (str), **kwargs
+    Salida: ExecutionResult
+    Descripción: Looks up an attack by name and runs it on the remote host.
+    """
     def run_attack(self, attack_name: str, target_ip: str, duration: int = 30,
                    intensity: str = "medium", **kwargs) -> ExecutionResult:
         from modules.attacks import get_attack_class
         attack_def = get_attack_class(attack_name)
         if attack_def is None:
-            return ExecutionResult(success=False, error=f"'{attack_name}' no encontrado")
+            return ExecutionResult(success=False, error=f"'{attack_name}' not found")
         cmd = attack_def.build_command(target_ip=target_ip, duration=duration, port=80)
         return self.execute(target_ip, cmd, timeout=duration + 30,
                             use_sudo=attack_def.requires_root,

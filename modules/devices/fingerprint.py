@@ -1,7 +1,9 @@
 """
-Device Fingerprinting — SH-DATASET
-Infiere el tipo de dispositivo IoT a partir de vendor (MAC OUI),
-puertos/servicios abiertos (nmap -sV) y service types (mDNS).
+Entrada: None
+Salida: fingerprint module
+Descripción: Device Fingerprinting — SH-DATASET.
+             Infers the IoT device type from vendor (MAC OUI), open ports/services
+             (nmap -sV), and service types (mDNS).
 """
 from __future__ import annotations
 
@@ -10,7 +12,6 @@ import subprocess
 from dataclasses import dataclass, field
 
 
-# ── resultado del fingerprint ───────────────────────────────────────
 @dataclass
 class DeviceFingerprint:
     device_type: str = "unknown"
@@ -24,19 +25,18 @@ class DeviceFingerprint:
     suggested_tags: str = ""
 
 
-# ── labels legibles ─────────────────────────────────────────────────
 _TYPE_LABELS: dict[str, str] = {
-    "camera": "📷 Cámara IP",
-    "bulb": "💡 Ampolleta",
-    "plug": "🔌 Enchufe",
-    "speaker": "🔊 Parlante",
+    "camera": "📷 IP Camera",
+    "bulb": "💡 Bulb",
+    "plug": "🔌 Plug",
+    "speaker": "🔊 Speaker",
     "hub": "🏠 Hub/Bridge",
     "tv": "📺 Smart TV",
-    "sensor": "📡 Sensor IoT",
+    "sensor": "📡 IoT Sensor",
     "router": "🌐 Router",
     "pc": "💻 PC",
-    "attacker": "⚔ Atacante",
-    "unknown": "❓ Desconocido",
+    "attacker": "⚔ Attacker",
+    "unknown": "❓ Unknown",
 }
 
 
@@ -44,7 +44,6 @@ def get_type_label(device_type: str) -> str:
     return _TYPE_LABELS.get(device_type, f"❓ {device_type}")
 
 
-# ── mapeo tipo → rol sugerido ───────────────────────────────────────
 _TYPE_TO_ROLE: dict[str, str] = {
     "camera": "target",
     "bulb": "target",
@@ -60,7 +59,6 @@ _TYPE_TO_ROLE: dict[str, str] = {
 }
 
 
-# ── mapeo vendor → tipo probable ────────────────────────────────────
 _VENDOR_MAP: dict[str, tuple[str, str]] = {
     "philips": ("bulb", "medium"),
     "signify": ("bulb", "medium"),
@@ -99,7 +97,6 @@ _VENDOR_MAP: dict[str, tuple[str, str]] = {
     "qemu": ("attacker", "medium"),
 }
 
-# ── mapeo puerto → tipo ─────────────────────────────────────────────
 _PORT_MAP: dict[int, tuple[str, str]] = {
     554: ("camera", "high"),
     8554: ("camera", "high"),
@@ -112,7 +109,6 @@ _PORT_MAP: dict[int, tuple[str, str]] = {
     5683: ("sensor", "medium"),
 }
 
-# ── mapeo mDNS service → tipo ───────────────────────────────────────
 _MDNS_MAP: dict[str, tuple[str, str]] = {
     "_hap._tcp": ("unknown", "medium"),
     "_googlecast._tcp": ("speaker", "high"),
@@ -130,7 +126,6 @@ _MDNS_MAP: dict[str, tuple[str, str]] = {
     "_rdp._tcp": ("pc", "medium"),
 }
 
-# ── OUI prefix → vendor (top IoT) ──────────────────────────────────
 _OUI_MAP: dict[str, str] = {
     "00:17:88": "Philips",
     "EC:B5:FA": "Philips",
@@ -172,17 +167,19 @@ _OUI_MAP: dict[str, str] = {
 _CONFIDENCE_ORDER = {"low": 0, "medium": 1, "high": 2}
 
 
-# ── lookup vendor desde MAC OUI ─────────────────────────────────────
 
 def _oui_lookup(mac: str) -> str:
-    """Intenta resolver el vendor desde los primeros 3 octetos del MAC."""
+    """
+    Entrada: mac (str)
+    Salida: str
+    Descripción: Tries to resolve the vendor from the first 3 octets of the MAC.
+    """
     if not mac or len(mac) < 8:
         return ""
     prefix = mac[:8].upper()
     return _OUI_MAP.get(prefix, "")
 
 
-# ── fingerprint principal ───────────────────────────────────────────
 
 def fingerprint_device(
     ip: str = "",
@@ -193,17 +190,17 @@ def fingerprint_device(
     mdns_types: list[str] | None = None,
 ) -> DeviceFingerprint:
     """
-    Combina heurísticas de vendor, puertos, servicios y mDNS
-    para inferir el tipo de dispositivo.
+    Entrada: ip, mac, vendor, open_ports, services, mdns_types
+    Salida: DeviceFingerprint
+    Descripción: Combines vendor, ports, services and mDNS heuristics
+                 to infer the device type.
     """
-    # try OUI lookup if vendor not provided
     if not vendor and mac:
         vendor = _oui_lookup(mac)
 
     candidates: list[tuple[str, str, str]] = []
     detected_protocols: list[str] = []
 
-    # 1. vendor match
     if vendor:
         vendor_lower = vendor.lower()
         for key, (dtype, conf) in _VENDOR_MAP.items():
@@ -211,14 +208,12 @@ def fingerprint_device(
                 candidates.append((dtype, conf, f"vendor={vendor}"))
                 break
 
-    # 2. port match
     if open_ports:
         for port in open_ports:
             if port in _PORT_MAP:
                 dtype, conf = _PORT_MAP[port]
                 candidates.append((dtype, conf, f"port={port}"))
 
-    # 3. mDNS match
     if mdns_types:
         for mtype in mdns_types:
             mtype_lower = mtype.lower()
@@ -228,7 +223,6 @@ def fingerprint_device(
                     detected_protocols.append(mtype)
                     break
 
-    # resolve best candidate
     if not candidates:
         return DeviceFingerprint(
             device_type="unknown",
@@ -236,7 +230,7 @@ def fingerprint_device(
             open_ports=open_ports or [],
             services=services or [],
             protocols=detected_protocols,
-            reason="sin datos suficientes",
+            reason="not enough data",
             suggested_role="unknown",
             suggested_tags="",
         )
@@ -248,7 +242,6 @@ def fingerprint_device(
     candidates.sort(key=_score, reverse=True)
     best_type, best_conf, best_reason = candidates[0]
 
-    # aggregate protocols
     if open_ports:
         if 80 in open_ports or 443 in open_ports:
             detected_protocols.append("HTTP")
@@ -261,7 +254,6 @@ def fingerprint_device(
         if 5353 in open_ports:
             detected_protocols.append("mDNS")
 
-    # suggested role and tags
     role = _TYPE_TO_ROLE.get(best_type, "unknown")
     tags_parts = [best_type]
     if vendor:
@@ -280,12 +272,12 @@ def fingerprint_device(
     )
 
 
-# ── nmap service scan (opcional, más lento) ─────────────────────────
 
 def nmap_service_scan(ip: str, timeout: int = 15) -> tuple[list[int], list[str]]:
     """
-    Ejecuta nmap -sV sobre un IP.
-    Retorna (open_ports, services).
+    Entrada: ip (str), timeout (int)
+    Salida: tuple[list[int], list[str]]
+    Descripción: Runs nmap -sV on an IP. Returns (open_ports, services).
     """
     try:
         result = subprocess.run(

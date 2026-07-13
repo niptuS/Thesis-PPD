@@ -1,6 +1,8 @@
 """
-LiveController — Maneja teclas del panel Live Execution
-y conecta la TUI con el LiveExecutionEngine.
+Entrada: None
+Salida: LiveController class
+Descripción: LiveController — handles keys for the Live Execution panel
+             and connects the TUI with the LiveExecutionEngine.
 """
 from __future__ import annotations
 
@@ -10,68 +12,79 @@ if TYPE_CHECKING:
     from design.Menu import MenuApp
 
 from design.Menu_live import build_live_section
-# attacker profiles managed by AttackersController
 from design.Menu_logs import EVENT_LOG
 from modules.live_executions.live_execution import LiveExecutionEngine
 
 
 class LiveController:
 
+    """
+    Entrada: app (MenuApp)
+    Salida: None
+    Descripción: Initializes the LiveController with the parent app and engine.
+    """
     def __init__(self, app: "MenuApp") -> None:
         self._app = app
         self._engine = LiveExecutionEngine()
         self._engine.set_logger(self._on_log)
 
+    """
+    Entrada: None
+    Salida: LiveExecutionEngine
+    Descripción: Returns the underlying execution engine.
+    """
     @property
     def engine(self) -> LiveExecutionEngine:
         return self._engine
 
+    """
+    Entrada: key (int)
+    Salida: bool
+    Descripción: Handles a key press. Returns True if the key was consumed.
+    """
     def handle_key(self, key: int) -> bool:
-        # Ctrl+R  = 18  → start / resume
         if key == 18:
             self._do_start_or_resume()
             return True
-        # Ctrl+P  = 16  → pause
         if key == 16:
             self._do_pause()
             return True
-        # Ctrl+X  = 24  → abort
         if key == 24:
             self._do_abort()
             return True
         return False
 
-    # ── actions ─────────────────────────────────────────────────
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Starts a new execution or resumes a paused one.
+    """
     def _do_start_or_resume(self) -> None:
         if self._engine._state.value == "PAUSED":
             self._engine.resume()
-            EVENT_LOG.info("Ejecución reanudada")
+            EVENT_LOG.info("Execution resumed")
             return
 
         if self._engine.is_active:
-            EVENT_LOG.warn("Ya hay una ejecución en curso")
+            EVENT_LOG.warn("An execution is already running")
             return
 
-        # validate prerequisites
         from design.Menu import CAPTURE_IFACE
         iface = CAPTURE_IFACE
         config = self._app.active_config
 
         if not iface or not any(c.isalnum() for c in iface):
-            self._app.set_status("Configure interfaz de red primero (Ctrl+N).", "err")
+            self._app.set_status("Configure a network interface first (Ctrl+N).", "err")
             return
         if config is None:
-            self._app.set_status("No hay configuración cargada.", "err")
+            self._app.set_status("No configuration loaded.", "err")
             return
 
-        # gather timeline events from config
         events = self._gather_events(config)
 
-        # gather registered devices for flow tagging
         devices = self._gather_devices()
 
-        # read capture mode from config (default: capture all including benign)
         output_cfg = getattr(config, "output", None)
         capture_benign = getattr(output_cfg, "export_benign", True) if output_cfg else True
 
@@ -79,10 +92,8 @@ class LiveController:
         if not output_dir:
             output_dir = "outputs"
 
-        # gather benign profiles for IoT command dispatch
         profiles = self._gather_profiles()
 
-        # pass attacker profiles for SSH execution
         ctrl_atk = getattr(self._app, "_ctrl_attackers", None)
         if ctrl_atk:
             self._engine._attacker_profiles = {
@@ -102,44 +113,51 @@ class LiveController:
         if ok:
             self._app.status = "RUNNING"
             self._app.capture = "ACTIVE"
-            self._app.set_status("Escenario iniciado", "ok")
+            self._app.set_status("Scenario started", "ok")
         else:
-            self._app.set_status("No se pudo iniciar la ejecución.", "err")
+            self._app.set_status("Could not start execution.", "err")
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Pauses the running execution.
+    """
     def _do_pause(self) -> None:
         self._engine.pause()
-        self._app.set_status("Pausado", "warn")
+        self._app.set_status("Paused", "warn")
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Aborts the running execution.
+    """
     def _do_abort(self) -> None:
         self._engine.abort()
         self._app.status = "IDLE"
         self._app.capture = "READY"
-        self._app.set_status("Abortando…", "warn")
+        self._app.set_status("Aborting…", "warn")
 
-    # ── helpers ─────────────────────────────────────────────────
 
+    """
+    Entrada: config (ScenarioConfig)
+    Salida: list[dict]
+    Descripción: Reads events from TimelineController. Recalculates offsets
+                 if the scenario start_time is stale (uses now() as base).
+    """
     def _gather_events(self, config) -> list[dict]:
-        """
-        Lee eventos del TimelineController. Recalcula offsets si el
-        escenario tiene start_time caducado (usa now() como base).
-        """
-
         ctrl = getattr(self._app, "_ctrl_timeline", None)
         if ctrl is not None and hasattr(ctrl, "manager"):
             manager = ctrl.manager
-            # recalculate scheduled datetimes from now
             scenario_start = getattr(config, "start_time", "00:00:00") if config else "00:00:00"
             base = manager.get_base_time(scenario_start)
 
-            # if base is in the future, events run at their scheduled time
-            # if base is now (scenario expired), offsets run from now
             manager.update_all_scheduled(base)
 
             pending = sum(1 for e in manager.events if e.status in ("queued", "expired"))
             completed = sum(1 for e in manager.events if e.status == "completed")
             EVENT_LOG.info(
-                f"Timeline: {len(manager)} eventos "
-                f"({completed} completados, {pending} pendientes) "
+                f"Timeline: {len(manager)} events "
+                f"({completed} completed, {pending} pending) "
                 f"base={base.strftime('%H:%M:%S')}"
             )
 
@@ -161,22 +179,34 @@ class LiveController:
                 })
         return events
 
+    """
+    Entrada: None
+    Salida: list
+    Descripción: Gets benign profiles for IoT command dispatch.
+    """
     def _gather_profiles(self) -> list:
-        """Get benign profiles for IoT command dispatch."""
         ctrl = getattr(self._app, "_ctrl_benign", None)
         if ctrl is not None and hasattr(ctrl, "profiles"):
             return ctrl.profiles
         return []
 
+    """
+    Entrada: None
+    Salida: list
+    Descripción: Gets registered devices from DevicesController for flow tagging.
+    """
     def _gather_devices(self) -> list:
-        """Get registered devices from DevicesController for flow tagging."""
         ctrl = getattr(self._app, "_ctrl_devices", None)
         if ctrl is not None and hasattr(ctrl, "devices"):
             return ctrl.devices
         return []
 
+    """
+    Entrada: message (str), level (str)
+    Salida: None
+    Descripción: Redirects engine logs to EventLog.
+    """
     def _on_log(self, message: str, level: str) -> None:
-        """Redirect engine logs to EventLog."""
         level_upper = level.upper()
         if level_upper in ("OK",):
             EVENT_LOG.ok(message)
@@ -187,8 +217,12 @@ class LiveController:
         else:
             EVENT_LOG.info(message)
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Called by Menu._render to update the live section.
+    """
     def refresh_section(self) -> None:
-        """Called by Menu._render to update the live section."""
         snap = self._engine.snapshot()
         updated = build_live_section(
             state=snap.state,
@@ -211,7 +245,6 @@ class LiveController:
         )
         self._app.replace_section("live", updated)
 
-        # sync app status bar
         if snap.state == "FINISHED":
             self._app.status = "IDLE"
             self._app.capture = "READY"

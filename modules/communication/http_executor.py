@@ -15,9 +15,19 @@ logger = logging.getLogger(__name__)
 class HTTPExecutor(BaseExecutor):
     """Send HTTP requests to IoT devices."""
 
+    """
+    Entrada: timeout (int)
+    Salida: None
+    Descripción: Initializes the HTTP executor with a request timeout.
+    """
     def __init__(self, timeout: int = 10):
         self.timeout = timeout
 
+    """
+    Entrada: target_ip (str), command (str), port (int), method (str), endpoint (str), payload (str), headers (dict | None), **kwargs
+    Salida: ExecutionResult
+    Descripción: Sends an HTTP request to the target and returns the result.
+    """
     def execute(self, target_ip: str, command: str, *,
                 port: int = 80, method: str = "POST",
                 endpoint: str = "/", payload: str = "",
@@ -45,12 +55,21 @@ class HTTPExecutor(BaseExecutor):
         except (OSError, ValueError, TimeoutError) as exc:
             return ExecutionResult(success=False, error=str(exc))
 
+    """
+    Entrada: target_ip (str), port (int)
+    Salida: bool
+    Descripción: Tests HTTP connectivity to the target by issuing a GET request.
+    """
     def test_connection(self, target_ip: str, port: int = 80) -> bool:
         result = self.execute(target_ip, "", port=port, method="GET", endpoint="/")
         return result.success
 
+    """
+    Entrada: device_ip (str), action, port (int)
+    Salida: ExecutionResult
+    Descripción: Execute a DeviceAction on a target device.
+    """
     def send_action(self, device_ip: str, action, port: int = 80) -> ExecutionResult:
-        """Execute a DeviceAction on a target device."""
         return self.execute(
             target_ip=device_ip,
             command=action.name,

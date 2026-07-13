@@ -19,6 +19,11 @@ from design.overlays import text_input_overlay, device_select_overlay
 
 
 class BenignProfilesController:
+    """
+    Entrada: app
+    Salida: None
+    Descripción: init
+    """
     def __init__(self, app: "MenuApp") -> None:
         self._app = app
         self._profiles: list[BenignProfile] = []
@@ -27,15 +32,30 @@ class BenignProfilesController:
         self._zone: str = "table"
         self._detail_cursor: int = -1
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: profiles
+    """
     @property
     def profiles(self) -> list[BenignProfile]:
         return list(self._profiles)
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: selected
+    """
     def _selected(self) -> Optional[BenignProfile]:
         if self._profiles and 0 <= self._cursor < len(self._profiles):
             return self._profiles[self._cursor]
         return None
 
+    """
+    Entrada: key
+    Salida: bool
+    Descripción: handle key
+    """
     def handle_key(self, key: int) -> bool:
         actions = {
             ord("a"): self._do_add, ord("A"): self._do_add,
@@ -109,9 +129,19 @@ class BenignProfilesController:
 
         return False
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: sync page
+    """
     def _sync_page(self):
         self._page = self._cursor // PAGE_SIZE
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: clamp cursor
+    """
     def _clamp_cursor(self):
         if not self._profiles:
             self._cursor = 0
@@ -120,6 +150,11 @@ class BenignProfilesController:
             self._cursor = min(self._cursor, len(self._profiles) - 1)
             self._sync_page()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: refresh
+    """
     def _refresh(self):
         updated = build_benign_profiles_section(
             profiles=self._profiles, cursor=self._cursor,
@@ -127,38 +162,38 @@ class BenignProfilesController:
         )
         self._app.replace_section("benign_profiles", updated)
 
-    # ── add profile with auto-scan ──────────────────────────────
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do add
+    """
     def _do_add(self):
         from design.Menu import choice_select_overlay
         if self._app._stdscr is None:
             return
         stdscr = self._app._stdscr
 
-        # 1. select device type
-        dtype = choice_select_overlay(stdscr, "Tipo de dispositivo", DEVICE_TYPES, DEVICE_TYPES[0])
+        dtype = choice_select_overlay(stdscr, "Device type", DEVICE_TYPES, DEVICE_TYPES[0])
         if not dtype:
             return
 
-        # 2. link to device
         ctrl_d = getattr(self._app, "_ctrl_devices", None)
         device_ip = ""
         device_tag = ""
         if ctrl_d and ctrl_d.devices:
             targets = [d for d in ctrl_d.devices if d.role != "attacker"]
             if targets:
-                device_ip = device_select_overlay(stdscr, "Vincular dispositivo", targets) or ""
+                device_ip = device_select_overlay(stdscr, "Link device", targets) or ""
                 if device_ip:
                     dev = next((d for d in targets if d.ip == device_ip), None)
                     device_tag = " ".join(dev.tags) if dev and dev.tags else ""
 
-        # 3. tag
-        tag = text_input_overlay(stdscr, "Tag / nombre del perfil", device_tag or dtype)
+        tag = text_input_overlay(stdscr, "Profile tag/name", device_tag or dtype)
         if tag is None:
             return
 
-        # 4. port
-        port_str = text_input_overlay(stdscr, "Puerto HTTP del dispositivo", "80")
+        port_str = text_input_overlay(stdscr, "Device HTTP port", "80")
         port = 80
         if port_str:
             try:
@@ -166,15 +201,13 @@ class BenignProfilesController:
             except ValueError:
                 pass
 
-        # 5. create profile (initially empty actions)
         profile = BenignProfile(
             device_type=dtype, device_ip=device_ip,
             device_tag=tag, port=port, protocol="http",
         )
 
-        # 6. scan endpoints
         if device_ip:
-            EVENT_LOG.info(f"Escaneando endpoints de {device_ip}:{port} ({dtype})…")
+            EVENT_LOG.info(f"Scanning endpoints on {device_ip}:{port} ({dtype})…")
             self._profiles.append(profile)
             self._cursor = len(self._profiles) - 1
             self._sync_page()
@@ -183,22 +216,29 @@ class BenignProfilesController:
                 target=self._scan_worker, args=(profile,), daemon=True
             ).start()
         else:
-            # no IP — use template actions
             template = create_template_profile(dtype, device_ip, tag)
             profile.actions = template.actions
             self._profiles.append(profile)
             self._cursor = len(self._profiles) - 1
             self._sync_page()
-            EVENT_LOG.ok(f"Perfil creado: {tag} (plantilla, {len(profile.actions)} acciones)")
+            EVENT_LOG.ok(f"Profile created: {tag} (template, {len(profile.actions)} actions)")
             self._refresh()
 
-    # ── endpoint scan worker ────────────────────────────────────
 
+    """
+    Entrada: profile
+    Salida: None
+    Descripción: scan worker
+    """
     def _scan_worker(self, profile: BenignProfile):
+        """
+        Entrada: msg, lvl
+        Salida: None
+        Descripción: log fn
+        """
         def log_fn(msg, lvl):
             return getattr(EVENT_LOG, lvl.lower(), EVENT_LOG.info)(msg)
 
-        # HTTP endpoint scan
         results = scan_endpoints(
             device_ip=profile.device_ip,
             device_type=profile.device_type,
@@ -209,7 +249,6 @@ class BenignProfilesController:
             log_fn=log_fn,
         )
 
-        # MQTT scan (try common ports)
         mqtt_results = {}
         for mqtt_port in [1883, 8883]:
             mqtt_results = scan_mqtt(
@@ -224,13 +263,11 @@ class BenignProfilesController:
 
         summary = summarize_scan(results)
 
-        # build actions from scan results
         profile.actions = []
         available = 0
         auth_needed = 0
         unavail = 0
 
-        # add MQTT actions first
         for action_name, mqtt_result in mqtt_results.items():
             profile.actions.append(DeviceAction(
                 name=f"mqtt_{action_name}",
@@ -257,57 +294,64 @@ class BenignProfilesController:
             elif info["status"] == "needs_auth":
                 profile.actions.append(DeviceAction(
                     name=f"{action_name}_auth",
-                    description=f"🔒 {info['desc']} (requiere credenciales)",
+                    description=f"🔒 {info['desc']} (requires credentials)",
                     protocol="http",
                     method=info["method"],
                     endpoint=info["endpoint"],
                 ))
                 auth_needed += 1
-                EVENT_LOG.warn(f"    🔒 {action_name}: {info['endpoint']} (403 — credenciales)")
+                EVENT_LOG.warn(f"    🔒 {action_name}: {info['endpoint']} (403 — credentials)")
             else:
                 unavail += 1
-                EVENT_LOG.info(f"    ✗ {action_name}: sin endpoint disponible")
+                EVENT_LOG.info(f"    ✗ {action_name}: no endpoint available")
 
         EVENT_LOG.ok(
-            f"Escaneo completado: {available} disponibles, "
-            f"{auth_needed} requieren auth, {unavail} no disponibles"
+            f"Scan completed: {available} available, "
+            f"{auth_needed} require auth, {unavail} no available"
         )
         self._refresh()
 
-    # ── manual scan for selected profile ────────────────────────
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do scan endpoints
+    """
     def _do_scan_endpoints(self):
         profile = self._selected()
         if not profile or not profile.device_ip:
-            EVENT_LOG.error("Seleccione un perfil con IP configurada")
+            EVENT_LOG.error("Select a profile with configured IP")
             return
 
-        # ask for credentials if needed
         if self._app._stdscr:
             from design.Menu import choice_select_overlay
-            if choice_select_overlay(self._app._stdscr, "¿Ingresar credenciales para el escaneo?",
-                                     ["No", "Sí"], "No") == "Sí":
-                user = text_input_overlay(self._app._stdscr, "Usuario HTTP", profile.auth_user)
+            if choice_select_overlay(self._app._stdscr, "Enter credentials for scan?",
+                                     ["No", "Yes"], "No") == "Yes":
+                user = text_input_overlay(self._app._stdscr, "HTTP user", profile.auth_user)
                 if user is not None:
                     profile.auth_user = user
-                pwd = text_input_overlay(self._app._stdscr, "Password HTTP", profile.auth_pass)
+                pwd = text_input_overlay(self._app._stdscr, "HTTP password", profile.auth_pass)
                 if pwd is not None:
                     profile.auth_pass = pwd
 
-        EVENT_LOG.info(f"Re-escaneando {profile.device_ip}:{profile.port}…")
+        EVENT_LOG.info(f"Re-scanning {profile.device_ip}:{profile.port}…")
         threading.Thread(target=self._scan_worker, args=(profile,), daemon=True).start()
 
-    # ── edit / delete / test ────────────────────────────────────
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do edit
+    """
     def _do_edit(self):
         from design.Menu import choice_select_overlay
         profile = self._selected()
         if not profile or not self._app._stdscr:
             return
         stdscr = self._app._stdscr
-        fields = ["tag", "device_ip", "port", "auth_user", "auth_pass", "Cancelar"]
-        field = choice_select_overlay(stdscr, "Editar campo", fields, fields[0])
-        if not field or field == "Cancelar":
+        fields = ["tag", "device_ip", "port", "auth_user", "auth_pass", "Cancel"]
+        field = choice_select_overlay(stdscr, "Edit field", fields, fields[0])
+        if not field or field == "Cancel":
             return
         if field == "tag":
             new = text_input_overlay(stdscr, "Tag", profile.device_tag)
@@ -318,7 +362,7 @@ class BenignProfilesController:
             if ctrl_d and ctrl_d.devices:
                 targets = [d for d in ctrl_d.devices if d.role != "attacker"]
                 if targets:
-                    new = device_select_overlay(stdscr, "Dispositivo", targets, profile.device_ip)
+                    new = device_select_overlay(stdscr, "Device", targets, profile.device_ip)
                     if new:
                         profile.device_ip = new
             else:
@@ -326,7 +370,7 @@ class BenignProfilesController:
                 if new:
                     profile.device_ip = new
         elif field == "port":
-            new = text_input_overlay(stdscr, "Puerto", str(profile.port))
+            new = text_input_overlay(stdscr, "Port", str(profile.port))
             if new:
                 try:
                     profile.port = int(new)
@@ -338,6 +382,11 @@ class BenignProfilesController:
                 setattr(profile, field, new)
         self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: edit action
+    """
     def _edit_action(self):
         from design.Menu import choice_select_overlay
         profile = self._selected()
@@ -347,9 +396,9 @@ class BenignProfilesController:
             return
         stdscr = self._app._stdscr
         action = profile.actions[self._detail_cursor]
-        fields = ["endpoint", "payload", "method", "Cancelar"]
-        field = choice_select_overlay(stdscr, f"Editar {action.name}", fields, fields[0])
-        if not field or field == "Cancelar":
+        fields = ["endpoint", "payload", "method", "Cancel"]
+        field = choice_select_overlay(stdscr, f"Edit {action.name}", fields, fields[0])
+        if not field or field == "Cancel":
             return
         if field == "endpoint":
             new = text_input_overlay(stdscr, "Endpoint", action.endpoint)
@@ -361,11 +410,16 @@ class BenignProfilesController:
                 action.payload = new
         elif field == "method":
             methods = ["GET", "POST", "PUT", "DELETE"]
-            new = choice_select_overlay(stdscr, "Método", methods, action.method)
+            new = choice_select_overlay(stdscr, "Method", methods, action.method)
             if new:
                 action.method = new
         self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do delete
+    """
     def _do_delete(self):
         profile = self._selected()
         if not profile:
@@ -376,7 +430,6 @@ class BenignProfilesController:
         self._zone = "table"
         self._detail_cursor = -1
         self._clamp_cursor()
-        # cascade: remove benign timeline events for this device
         ctrl_tl = getattr(self._app, "_ctrl_timeline", None)
         if ctrl_tl and ip:
             before = len(ctrl_tl._manager._events)
@@ -387,26 +440,41 @@ class BenignProfilesController:
             removed = before - len(ctrl_tl._manager._events)
             ctrl_tl._clamp_cursor()
             if removed:
-                EVENT_LOG.info(f"  + {removed} eventos benignos eliminados del timeline")
-        EVENT_LOG.info(f"Perfil eliminado: {tag}")
+                EVENT_LOG.info(f"  + {removed} benign events removed from timeline")
+        EVENT_LOG.info(f"Profile removed: {tag}")
         self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do test
+    """
     def _do_test(self):
         profile = self._selected()
         if not profile or not profile.device_ip:
             return
         from modules.communication.http_executor import HTTPExecutor
-        EVENT_LOG.info(f"Test conexión → {profile.device_ip}:{profile.port}…")
+        EVENT_LOG.info(f"Test connection → {profile.device_ip}:{profile.port}…")
         executor = HTTPExecutor(timeout=5)
         ok = executor.test_connection(profile.device_ip, profile.port)
         if ok:
-            EVENT_LOG.ok(f"Conexión OK: {profile.device_ip}:{profile.port}")
+            EVENT_LOG.ok(f"Connection OK: {profile.device_ip}:{profile.port}")
         else:
-            EVENT_LOG.error(f"Sin respuesta: {profile.device_ip}:{profile.port}")
+            EVENT_LOG.error(f"No response: {profile.device_ip}:{profile.port}")
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: to list
+    """
     def to_list(self) -> list[dict]:
         return [p.to_dict() for p in self._profiles]
 
+    """
+    Entrada: data
+    Salida: None
+    Descripción: load from list
+    """
     def load_from_list(self, data: list[dict]) -> None:
         self._profiles = [BenignProfile.from_dict(d) for d in data]
         self._clamp_cursor()

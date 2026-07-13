@@ -28,19 +28,21 @@ class EndpointResult:
     description: str = ""
     payload: str = ""
 
-# ═══════════════════════════════════════════════════════════════
-# ENDPOINT DATABASES
-# ═══════════════════════════════════════════════════════════════
 
 
 def _ep(endpoint, method="GET", desc="", payload=""):
+    """
+    Entrada: endpoint, method, desc, payload
+    Salida: None
+    Descripción: ep
+    """
     return {"ep": endpoint, "m": method, "desc": desc, "payload": payload}
 
 
 CAMERA_ENDPOINTS = {
     "take_snapshot": [
-        _ep("/snapshot", desc="Snapshot genérico"), _ep("/snapshot.cgi", desc="CGI genérico"),
-        _ep("/snap.jpg", desc="JPEG directo"), _ep("/snap.cgi"), _ep("/image.jpg"),
+        _ep("/snapshot", desc="Generic snapshot"), _ep("/snapshot.cgi", desc="Generic CGI"),
+        _ep("/snap.jpg", desc="Direct JPEG"), _ep("/snap.cgi"), _ep("/image.jpg"),
         _ep("/image/jpeg.cgi", desc="D-Link JPEG"), _ep("/capture"), _ep("/capture.jpg"),
         _ep("/still.jpg"), _ep("/webcapture.jpg", desc="Chinese cams"),
         _ep("/tmpfs/auto.jpg"), _ep("/tmpfs/snap.jpg"), _ep("/jpg/image.jpg"),
@@ -71,7 +73,7 @@ CAMERA_ENDPOINTS = {
     "ptz_control": [
         _ep("/cgi-bin/ptz.cgi?action=start&channel=0&code=Up", desc="Dahua PTZ"),
         _ep("/ISAPI/PTZCtrl/channels/1/continuous", "PUT", "Hikvision PTZ"),
-        _ep("/api/ptz", "POST", "PTZ genérico"),
+        _ep("/api/ptz", "POST", "Generic PTZ"),
     ],
     "reboot": [
         _ep("/cgi-bin/magicBox.cgi?action=reboot", desc="Dahua"),
@@ -82,7 +84,7 @@ CAMERA_ENDPOINTS = {
 
 _RELAY_ON = [
     _ep("/relay/0?turn=on", desc="Shelly"), _ep("/cm?cmnd=Power%20On", desc="Tasmota"),
-    _ep("/api/light", "POST", "API genérica", '{"state":"on"}'),
+    _ep("/api/light", "POST", "Generic API", '{"state":"on"}'),
     _ep("/light/on", "POST"), _ep("/switch/on", "POST"),
     _ep("/state", "POST", "State", '{"on":true}'),
     _ep("/api/lights/1/state", "PUT", "Hue-style", '{"on":true}'),
@@ -90,13 +92,13 @@ _RELAY_ON = [
 ]
 _RELAY_OFF = [
     _ep("/relay/0?turn=of", desc="Shelly"), _ep("/cm?cmnd=Power%20Of", desc="Tasmota"),
-    _ep("/api/light", "POST", "API genérica", '{"state":"off"}'),
+    _ep("/api/light", "POST", "Generic API", '{"state":"off"}'),
     _ep("/light/of", "POST"), _ep("/switch/of", "POST"),
     _ep("/state", "POST", "State", '{"on":false}'),
     _ep("/zeroconf/switch", "POST", "Sonoff DIY", '{"data":{"switch":"off"}}'),
 ]
 _STATUS = [
-    _ep("/status", desc="Status genérico"), _ep("/relay/0", desc="Shelly status"),
+    _ep("/status", desc="Generic status"), _ep("/relay/0", desc="Shelly status"),
     _ep("/cm?cmnd=Status%200", desc="Tasmota"), _ep("/api/state"),
     _ep("/settings", desc="Shelly settings"),
 ]
@@ -254,7 +256,6 @@ APPLIANCE_ENDPOINTS = {
     "get_program": [_ep("/api/program"), _ep("/api/status"), _ep("/status")],
 }
 
-# ── MQTT TOPICS per device type ────────────────────────────────
 
 MQTT_TOPICS = {
     "bulb": {
@@ -283,7 +284,6 @@ MQTT_TOPICS = {
     },
 }
 
-# ═══════════════════════════════════════════════════════════════
 
 ENDPOINT_DB = {
     "camera": CAMERA_ENDPOINTS, "bulb": BULB_ENDPOINTS, "plug": PLUG_ENDPOINTS,
@@ -295,21 +295,23 @@ ENDPOINT_DB = {
 }
 
 
-# ═══════════════════════════════════════════════════════════════
-# SCANNER
-# ═══════════════════════════════════════════════════════════════
 
 def _optimal_workers() -> int:
     """Dynamic thread count based on system CPU."""
     try:
         cpus = os.cpu_count() or 4
-        return min(cpus * 3, 20)  # 3x CPUs, max 20
+        return min(cpus * 3, 20)
     except Exception:
         return 8
 
 
 def scan_endpoints(device_ip, device_type, port=80, timeout=1.5,
                    auth_user="", auth_pass="", log_fn=None):
+    """
+    Entrada: device_ip, device_type, port, timeout, auth_user, auth_pass, log_fn
+    Salida: None
+    Descripción: scan endpoints
+    """
     db = ENDPOINT_DB.get(device_type, {})
     if not db:
         if log_fn:
@@ -356,7 +358,7 @@ def scan_endpoints(device_ip, device_type, port=80, timeout=1.5,
                     log_fn(f"  🔒 {action_name}: {result.endpoint} → {result.status_code}", "WARN")
 
     if log_fn:
-        log_fn(f"  Completado: {completed[0]}/{len(all_tasks)} endpoints", "INFO")
+        log_fn(f"  Completed: {completed[0]}/{len(all_tasks)} endpoints", "INFO")
     return results
 
 
@@ -372,6 +374,11 @@ def scan_mqtt(device_ip, device_type, port=1883, timeout=3.0, log_fn=None):
         connected = [False]
 
         def on_connect(c, u, f, rc):
+            """
+            Entrada: c, u, f, rc
+            Salida: None
+            Descripción: on connect
+            """
             connected[0] = rc == 0
         client.on_connect = on_connect
         client.connect(device_ip, port, keepalive=int(timeout))
@@ -382,7 +389,7 @@ def scan_mqtt(device_ip, device_type, port=1883, timeout=3.0, log_fn=None):
         client.disconnect()
         if connected[0]:
             if log_fn:
-                log_fn(f"  MQTT broker conectado en {device_ip}:{port}", "OK")
+                log_fn(f"  MQTT broker connected at {device_ip}:{port}", "OK")
             for action_name, info in topics.items():
                 results[action_name] = EndpointResult(
                     endpoint=info["topic"], action_name=action_name,
@@ -393,10 +400,10 @@ def scan_mqtt(device_ip, device_type, port=1883, timeout=3.0, log_fn=None):
             return results
         else:
             if log_fn:
-                log_fn(f"  MQTT no disponible en {device_ip}:{port}", "INFO")
+                log_fn(f"  MQTT not available at {device_ip}:{port}", "INFO")
     except ImportError:
         if log_fn:
-            log_fn("  paho-mqtt no instalado (pip install paho-mqtt)", "WARN")
+            log_fn("  paho-mqtt not installed (pip install paho-mqtt)", "WARN")
     except Exception as e:
         if log_fn:
             log_fn(f"  MQTT error: {e}", "INFO")
@@ -404,6 +411,11 @@ def scan_mqtt(device_ip, device_type, port=1883, timeout=3.0, log_fn=None):
 
 
 def _probe_endpoint(ip, port, endpoint, method, payload, timeout, auth_user, auth_pass):
+    """
+    Entrada: ip, port, endpoint, method, payload, timeout, auth_user, auth_pass
+    Salida: None
+    Descripción: probe endpoint
+    """
     url = f"http://{ip}:{port}{endpoint}"
     result = EndpointResult(endpoint=endpoint, method=method, protocol="http")
     try:
@@ -429,6 +441,11 @@ def _probe_endpoint(ip, port, endpoint, method, payload, timeout, auth_user, aut
 
 
 def summarize_scan(results):
+    """
+    Entrada: results
+    Salida: None
+    Descripción: summarize scan
+    """
     summary = {}
     for action, ep_results in results.items():
         available = [r for r in ep_results if r.available]

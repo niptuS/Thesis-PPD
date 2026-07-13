@@ -49,6 +49,11 @@ IOT_TAG_HEURISTICS: dict[str, list[str]] = {
 }
 
 
+"""
+Entrada: ip (str)
+Salida: str
+Descripción: Validates an IPv4 address string, raising on invalid input.
+"""
 def _validate_ip(ip: str) -> str:
     try:
         ipaddress.IPv4Address(ip)
@@ -57,6 +62,11 @@ def _validate_ip(ip: str) -> str:
         raise ValueError(f"invalid IPv4 address: {ip!r}") from exc
 
 
+"""
+Entrada: mac (str)
+Salida: str
+Descripción: Validates and normalizes a MAC address string.
+"""
 def _validate_mac(mac: str) -> str:
     parts = mac.lower().replace("-", ":").split(":")
     if len(parts) != 6:
@@ -85,11 +95,21 @@ class DeviceEntry:
     status: str = "online"
     notes: str = ""
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Validates IP and MAC fields after dataclass initialization.
+    """
     def __post_init__(self) -> None:
         self.ip = _validate_ip(self.ip)
         if self.mac:
             self.mac = _validate_mac(self.mac)
 
+    """
+    Entrada: None
+    Salida: dict
+    Descripción: Converts the device entry to a dictionary.
+    """
     def to_dict(self) -> dict:
         return {
             "ip": self.ip,
@@ -108,6 +128,11 @@ class DeviceEntry:
             "notes": self.notes,
         }
 
+    """
+    Entrada: data (dict)
+    Salida: DeviceEntry
+    Descripción: Builds a DeviceEntry from a dictionary.
+    """
     @classmethod
     def from_dict(cls, data: dict) -> "DeviceEntry":
         ports = [

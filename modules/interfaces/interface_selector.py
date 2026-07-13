@@ -7,6 +7,11 @@ _WIRED_PREFIXES: tuple[str, ...] = ("eth", "en", "eno", "enp", "ens")
 _WIRELESS_PREFIXES: tuple[str, ...] = ("wlan", "wlp", "wl", "wifi", "wlo")
 
 
+"""
+Entrada: iface (InterfaceInfo)
+Salida: int
+Descripción: Scores an interface for default-selection ranking.
+"""
 def _score(iface: InterfaceInfo) -> int:
     score = 0
     if iface.is_up:
@@ -25,6 +30,11 @@ def _score(iface: InterfaceInfo) -> int:
     return score
 
 
+"""
+Entrada: interfaces (list[InterfaceInfo] | None)
+Salida: InterfaceInfo | None
+Descripción: Selects the best default network interface by ranking candidates.
+"""
 def select_default_interface(
     interfaces: list[InterfaceInfo] | None = None,
 ) -> InterfaceInfo | None:
@@ -42,6 +52,11 @@ def select_default_interface(
     return selected
 
 
+"""
+Entrada: interfaces (list[InterfaceInfo]), up_only (bool)
+Salida: list[InterfaceInfo]
+Descripción: Filters interfaces, optionally keeping only those that are up.
+"""
 def filter_by_state(
     interfaces: list[InterfaceInfo],
     up_only: bool = True,
@@ -49,5 +64,10 @@ def filter_by_state(
     return [i for i in interfaces if i.is_up] if up_only else interfaces
 
 
+"""
+Entrada: interfaces (list[InterfaceInfo])
+Salida: list[InterfaceInfo]
+Descripción: Returns only interfaces with private (RFC1918) IPv4 addresses.
+"""
 def filter_private_only(interfaces: list[InterfaceInfo]) -> list[InterfaceInfo]:
     return [i for i in interfaces if i.is_private]

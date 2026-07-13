@@ -8,6 +8,11 @@ class ArpSpoofAttack(BaseAttack):
     description = "ARP spoofing — man-in-the-middle via cache poisoning"
     mitre_ref = "T1557.002"
 
+    """
+    Entrada: target_ip (str), duration_s (int), intensity (str), gateway_ip (str), **kwargs
+    Salida: AttackResult
+    Descripción: Runs ARP spoofing attack to perform MITM via cache poisoning.
+    """
     def run(self, target_ip: str, duration_s: int = 60, intensity: str = "medium",
             gateway_ip: str = "", **kwargs) -> AttackResult:
         if not self.validate(target_ip):

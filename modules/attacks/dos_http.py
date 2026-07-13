@@ -9,6 +9,11 @@ class DosHttpAttack(BaseAttack):
     description = "HTTP flood attack — saturates web server with requests"
     mitre_ref = "T1498.001"
 
+    """
+    Entrada: target_ip (str), duration_s (int), intensity (str), target_port (int), path (str), **kwargs
+    Salida: AttackResult
+    Descripción: Runs HTTP flood attack using multiple worker threads.
+    """
     def run(self, target_ip: str, duration_s: int = 30, intensity: str = "medium",
             target_port: int = 80, path: str = "/", **kwargs) -> AttackResult:
         if not self.validate(target_ip):

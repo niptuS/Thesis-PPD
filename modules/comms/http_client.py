@@ -21,6 +21,11 @@ class HTTPResult:
 class HTTPClient:
     """Sends HTTP requests to IoT devices."""
 
+    """
+    Entrada: base_url (str), auth_user (str), auth_pass (str), timeout (int)
+    Salida: None
+    Descripción: Initializes the HTTP client with base URL and optional basic auth.
+    """
     def __init__(self, base_url: str = "", auth_user: str = "",
                  auth_pass: str = "", timeout: int = 10) -> None:
         self.base_url = base_url.rstrip("/")
@@ -28,6 +33,11 @@ class HTTPClient:
         self.auth_pass = auth_pass
         self.timeout = timeout
 
+    """
+    Entrada: method (str), endpoint (str), payload (str), headers (dict | None)
+    Salida: HTTPResult
+    Descripción: Sends an HTTP request and returns the result.
+    """
     def request(self, method: str, endpoint: str, payload: str = "",
                 headers: dict | None = None) -> HTTPResult:
         url = f"{self.base_url}{endpoint}"
@@ -35,7 +45,6 @@ class HTTPClient:
         if headers:
             hdrs.update(headers)
 
-        # basic auth
         if self.auth_user:
             import base64
             cred = base64.b64encode(f"{self.auth_user}:{self.auth_pass}".encode()).decode()
@@ -55,11 +64,26 @@ class HTTPClient:
         except Exception as exc:
             return HTTPResult(success=False, error=str(exc))
 
+    """
+    Entrada: endpoint (str)
+    Salida: HTTPResult
+    Descripción: Issues a GET request to the given endpoint.
+    """
     def get(self, endpoint: str) -> HTTPResult:
         return self.request("GET", endpoint)
 
+    """
+    Entrada: endpoint (str), payload (str)
+    Salida: HTTPResult
+    Descripción: Issues a POST request to the given endpoint.
+    """
     def post(self, endpoint: str, payload: str = "") -> HTTPResult:
         return self.request("POST", endpoint, payload)
 
+    """
+    Entrada: endpoint (str), payload (str)
+    Salida: HTTPResult
+    Descripción: Issues a PUT request to the given endpoint.
+    """
     def put(self, endpoint: str, payload: str = "") -> HTTPResult:
         return self.request("PUT", endpoint, payload)

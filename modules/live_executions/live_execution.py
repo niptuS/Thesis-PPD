@@ -1,7 +1,9 @@
 """
-Live Execution Engine — SH-DATASET
-Coordina captura PCAP, ejecución de eventos del timeline,
-y generación de flujos etiquetados con NFStream al finalizar.
+Entrada: None
+Salida: LiveExecutionEngine module
+Descripción: Live Execution Engine — SH-DATASET.
+             Coordinates PCAP capture, timeline event execution,
+             and labeled flow generation with NFStream at the end.
 """
 from __future__ import annotations
 
@@ -18,7 +20,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Optional
 
-# remote execution
 from modules.communication.ssh_executor import SSHExecutor
 from modules.communication.http_executor import HTTPExecutor
 
@@ -57,6 +58,11 @@ class ExecSnapshot:
 
 class LiveExecutionEngine:
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Initialize the LiveExecutionEngine with default IDLE state and empty runtime fields.
+    """
     def __init__(self) -> None:
         self._state = ExecState.IDLE
         self._lock = threading.Lock()
@@ -66,7 +72,7 @@ class LiveExecutionEngine:
         self._pause.set()
 
         self._start_time: float = 0.0
-        self._end_time: float = 0.0       # freezes elapsed on stop
+        self._end_time: float = 0.0
         self._planned_s: float = 0.0
         self._pcap_proc: Optional[subprocess.Popen] = None
         self._pcap_path: str = ""
@@ -79,14 +85,11 @@ class LiveExecutionEngine:
         self._next_event: str = "—"
         self._flows_count: int = 0
         self._error: str = ""
-        # PCAP rotation: split files by size (KB)
-        # configurable via config.pcap_max_size_kb (default 10240 = 10 MB)
-        self._pcap_max_size_kb: int = 512000  # 500 MB default
+        self._pcap_max_size_kb: int = 512000
         self._capture_ok: bool = False
         self._iface: str = ""
         self._config: Any = None
 
-        # device IP → role map for flow tagging
         self._device_map: dict[str, str] = {}
 
         self._log_fn: Optional[Callable[[str, str], None]] = None
@@ -94,21 +97,28 @@ class LiveExecutionEngine:
         self._capture_benign: bool = True
         self._attack_mode: str = "local"
         self._attacker_profiles: dict = {}
-        self._get_executor = None  # callback: ip → SSHExecutor
+        self._get_executor = None
 
-        # remote executors
         self._ssh_executor: Optional[SSHExecutor] = None
         self._http_executor: HTTPExecutor = HTTPExecutor(timeout=10)
-        self._profiles: list = []  # BenignProfile list for IoT commands
+        self._profiles: list = []
 
-    # ── public API ──────────────────────────────────────────────
 
+    """
+    Entrada: fn (Callable[[str, str], None])
+    Salida: None
+    Descripción: Set the external logging callback used to emit messages.
+    """
     def set_logger(self, fn: Callable[[str, str], None]) -> None:
         self._log_fn = fn
 
+    """
+    Entrada: None
+    Salida: ExecSnapshot
+    Descripción: Build and return a thread-safe snapshot of the current execution state.
+    """
     def snapshot(self) -> ExecSnapshot:
         with self._lock:
-            # use frozen end_time if execution stopped, else live time
             if self._end_time > 0:
                 elapsed = self._end_time - self._start_time
             elif self._start_time > 0:
@@ -141,6 +151,11 @@ class LiveExecutionEngine:
                 error=self._error,
             )
 
+    """
+    Entrada: config, iface (str), output_dir (str), events (list[dict] | None), devices (list | None), capture_benign (bool), profiles (list | None)
+    Salida: bool
+    Descripción: Start a live execution: prepare output dirs, configure attacker/SSH mode, build the device map, and launch the run loop thread.
+    """
     def start(
         self,
         config,
@@ -190,7 +205,6 @@ class LiveExecutionEngine:
         self._active_attack = "—"
         self._next_event = self._format_next_event()
 
-        # setup attacker execution mode
         attacker_cfg = getattr(config, "attacker", None)
         self._attack_mode = getattr(attacker_cfg, "mode", "local") if attacker_cfg else "local"
 
@@ -202,29 +216,30 @@ class LiveExecutionEngine:
                 key_file=getattr(attacker_cfg, "ssh_key", ""),
                 password=self._ssh_password,
             )
-            self._log(f"Modo SSH → Kali en {attacker_cfg.ip} ({attacker_cfg.ssh_user})", "INFO")
+            self._log(f"SSH mode → Kali at {attacker_cfg.ip} ({attacker_cfg.ssh_user})", "INFO")
         else:
             self._ssh_executor = None
             if self._attack_mode == "local":
-                self._log("Modo local — ataques se ejecutan en esta máquina", "INFO")
+                self._log("Local mode — attacks run on this machine", "INFO")
             else:
-                self._log("Modo SSH sin IP configurada — ataques solo se registran", "WARN")
+                self._log("SSH mode without configured IP — attacks only logged", "WARN")
 
-        # build IP → role map from registered devices
         self._device_map = {}
+        from modules.devices.host_detector import get_host_ip
+        host_ip = get_host_ip()
+        self._device_map[host_ip] = "attacker"
         if devices:
             for dev in devices:
                 ip = getattr(dev, "ip", "")
                 role = getattr(dev, "role", "unknown")
                 if ip:
                     self._device_map[ip] = role
-        # store benign profiles for IoT command dispatch
         self._profiles = profiles or []
         if self._profiles:
-            self._log(f"Perfiles benignos: {len(self._profiles)} cargados", "INFO")
+            self._log(f"Benign profiles: {len(self._profiles)} loaded", "INFO")
 
             self._log(
-                f"Device map: {len(self._device_map)} dispositivos "
+                f"Device map: {len(self._device_map)} devices "
                 f"({sum(1 for r in self._device_map.values() if r == 'target')} targets, "
                 f"{sum(1 for r in self._device_map.values() if r == 'attacker')} attackers, "
                 f"{sum(1 for r in self._device_map.values() if r == 'benign')} benign)",
@@ -239,39 +254,62 @@ class LiveExecutionEngine:
         self._thread.start()
         return True
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Pause a running execution by clearing the pause event and switching state to PAUSED.
+    """
     def pause(self) -> None:
         if self._state == ExecState.RUNNING:
             self._pause.clear()
             self._state = ExecState.PAUSED
-            self._log("Ejecución pausada", "WARN")
+            self._log("Execution paused", "WARN")
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Resume a paused execution by setting the pause event and switching state to RUNNING.
+    """
     def resume(self) -> None:
         if self._state == ExecState.PAUSED:
             self._pause.set()
             self._state = ExecState.RUNNING
-            self._log("Ejecución reanudada", "INFO")
+            self._log("Execution resumed", "INFO")
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Request execution abort by setting the cancel and pause events.
+    """
     def abort(self) -> None:
         if self._state in (ExecState.RUNNING, ExecState.PAUSED, ExecState.STARTING):
             self._cancel.set()
             self._pause.set()
-            self._log("Abortando ejecución…", "WARN")
+            self._log("Aborting execution…", "WARN")
 
+    """
+    Entrada: None
+    Salida: bool
+    Descripción: Return True if the engine is currently running, paused, or starting.
+    """
     @property
     def is_active(self) -> bool:
         return self._state in (ExecState.RUNNING, ExecState.PAUSED, ExecState.STARTING)
 
-    # ── main loop ───────────────────────────────────────────────
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Main background loop — start capture, fire timeline events at their offsets, then stop capture, extract flows, and generate metadata.
+    """
     def _run_loop(self) -> None:
         try:
             self._start_capture()
             self._start_time = time.time()
             self._state = ExecState.RUNNING
-            self._log("Escenario iniciado", "INFO")
-            self._log(f"Captura PCAP: {os.path.basename(self._pcap_path)}", "INFO")
+            self._log("Scenario started", "INFO")
+            self._log(f"PCAP capture: {os.path.basename(self._pcap_path)}", "INFO")
 
-            # filter to pending events only (skip completed/skipped)
             sorted_events = sorted(
                 [e for e in self._events if e.get("status", "queued") in ("queued", "expired")],
                 key=lambda e: e.get("offset_s", 0),
@@ -284,7 +322,7 @@ class LiveExecutionEngine:
 
             if pending_count < total_events:
                 self._log(
-                    f"Continuando: {already_done} completados, {pending_count} pendientes",
+                    f"Resuming: {already_done} completed, {pending_count} pending",
                     "INFO",
                 )
 
@@ -296,7 +334,7 @@ class LiveExecutionEngine:
                 elapsed = time.time() - self._start_time
 
                 if self._planned_s > 0 and elapsed >= self._planned_s:
-                    self._log("Duración planificada alcanzada", "INFO")
+                    self._log("Planned duration reached", "INFO")
                     break
 
                 while event_idx < len(sorted_events):
@@ -316,82 +354,122 @@ class LiveExecutionEngine:
                 self._capture_ok = self._pcap_proc is not None and self._pcap_proc.poll() is None
                 time.sleep(0.5)
 
-            # ── freeze timer ────────────────────────────────────
             self._end_time = time.time()
 
             if self._cancel.is_set():
                 self._state = ExecState.ABORTED
-                self._log("Ejecución abortada por el usuario", "WARN")
+                self._log("Execution aborted by user", "WARN")
             else:
                 self._state = ExecState.STOPPING
                 self._fired = len(sorted_events)
 
             self._stop_capture()
-            # wait for PCAP to flush to disk
             time.sleep(2)
-            self._log("Procesando capturas…", "INFO")
+            self._log("Processing captures…", "INFO")
 
-            # NFStream
             pcap_files = self._find_pcap_files()
             if pcap_files:
                 total_size = sum(os.path.getsize(f) for f in pcap_files)
                 if total_size > 0:
                     self._extract_flows(pcap_files)
                 else:
-                    self._log(f"PCAP vacío ({total_size} bytes)", "WARN")
+                    self._log(f"PCAP empty ({total_size} bytes)", "WARN")
             else:
-                self._log("PCAP no encontrado", "WARN")
+                self._log("PCAP not found", "WARN")
 
             self._generate_metadata()
             self._save_execution_log()
 
             if self._state != ExecState.ABORTED:
                 self._state = ExecState.FINISHED
-                self._log("Ejecución completada", "OK")
+                self._log("Execution completed", "OK")
             else:
-                self._log("Ejecución finalizada (abortada)", "WARN")
+                self._log("Execution finished (aborted)", "WARN")
 
         except Exception as exc:  # pylint: disable=broad-exception-caught
             self._end_time = time.time()
             self._error = str(exc)
             self._state = ExecState.ERROR
-            self._log(f"Error fatal: {exc}", "ERROR")
+            self._log(f"Fatal error: {exc}", "ERROR")
             self._stop_capture()
 
-    # ── capture ─────────────────────────────────────────────────
 
+    """
+    Entrada: None
+    Salida: list[str]
+    Descripción: Find all PCAP chunks and rename to base_partN.pcap format. Handles dumpcap/tshark -b chunks (base_00001_TIMESTAMP.pcapng) and tcpdump -C chunks (base.pcap1, base.pcap2); produces base.pcap, base_part1.pcap, base_part2.pcap, ...
+    """
     def _find_pcap_files(self) -> list[str]:
-        """Find all PCAP files from this capture (including rotated parts)."""
         pcap_dir = os.path.dirname(self._pcap_path)
-        base = os.path.basename(self._pcap_path).rsplit(".", 1)[0]
-        files = []
-        if os.path.exists(self._pcap_path):
-            files.append(self._pcap_path)
-        # rotated files: base_00001_timestamp.pcap, base_00002_timestamp.pcap
-        if os.path.isdir(pcap_dir):
-            for fn in sorted(os.listdir(pcap_dir)):
-                full = os.path.join(pcap_dir, fn)
-                if full == self._pcap_path:
-                    continue
-                if fn.startswith(base) and fn.endswith((".pcap", ".pcapng")):
-                    files.append(full)
-        return files
+        base_name = os.path.basename(self._pcap_path)
+        base = base_name.rsplit(".", 1)[0]
 
+        if not os.path.isdir(pcap_dir):
+            return [self._pcap_path] if os.path.exists(self._pcap_path) else []
+
+        exact_match = None
+        rotated = []
+        for fn in sorted(os.listdir(pcap_dir)):
+            full = os.path.join(pcap_dir, fn)
+            if not os.path.isfile(full):
+                continue
+            if fn == base_name:
+                exact_match = full
+            elif fn.startswith(base + "_") and any(
+                fn.endswith(e) for e in (".pcap", ".pcapng")
+            ):
+                rotated.append(full)
+            elif fn.startswith(base_name) and fn[len(base_name):].isdigit():
+                rotated.append(full)
+
+        renamed = []
+        if exact_match:
+            renamed.append(exact_match)
+        elif rotated:
+            first = rotated.pop(0)
+            ext = ".pcapng" if first.endswith(".pcapng") else ".pcap"
+            new_base = os.path.join(pcap_dir, base + ext)
+            try:
+                os.rename(first, new_base)
+                self._log(f"Chunk: {os.path.basename(first)} → {base}{ext}", "INFO")
+                renamed.append(new_base)
+                self._pcap_path = new_base
+            except OSError:
+                renamed.append(first)
+
+        for i, fpath in enumerate(rotated, start=1):
+            fn = os.path.basename(fpath)
+            ext = ".pcapng" if fpath.endswith(".pcapng") else ".pcap"
+            new_name = os.path.join(pcap_dir, f"{base}_part{i}{ext}")
+            if fpath != new_name and not os.path.exists(new_name):
+                try:
+                    os.rename(fpath, new_name)
+                    self._log(f"Chunk: {fn} → {os.path.basename(new_name)}", "INFO")
+                    fpath = new_name
+                except OSError:
+                    pass
+            renamed.append(fpath)
+
+        if not renamed and os.path.exists(self._pcap_path):
+            renamed.append(self._pcap_path)
+        return renamed
+
+    """
+    Entrada: None
+    Salida: str
+    Descripción: Find tcpdump, tshark, or dumpcap on the system; returns the tool path or empty string.
+    """
     def _find_capture_tool(self) -> str:
-        """Find tcpdump, tshark, or dumpcap on the system."""
         import shutil
         import platform
-        # Linux: tcpdump is standard
         if platform.system() != "Windows":
             for tool in ["tcpdump", "dumpcap", "tshark"]:
                 if shutil.which(tool):
                     return tool
             return ""
-        # Windows: check Wireshark install paths
         for tool in ["tshark", "dumpcap"]:
             if shutil.which(tool):
                 return tool
-        # search common Wireshark paths on Windows
         import glob
         for pattern in [
             r"C:\Program Files\Wireshark\*.exe",
@@ -405,13 +483,17 @@ class LiveExecutionEngine:
                     return path
         return ""
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Resolve the capture tool and start the PCAP capture process on the configured interface.
+    """
     def _start_capture(self) -> None:
         if not self._iface:
-            self._log("Sin interfaz de captura configurada", "WARN")
+            self._log("No capture interface configured", "WARN")
             self._capture_ok = False
             return
 
-        # ensure output directories exist with write permissions
         self._pcap_path = os.path.abspath(self._pcap_path)
         self._flows_path = os.path.abspath(self._flows_path)
         self._meta_path = os.path.abspath(self._meta_path)
@@ -428,15 +510,15 @@ class LiveExecutionEngine:
         tool = self._find_capture_tool()
         if not tool:
             self._log(
-                "No se encontró herramienta de captura (tcpdump/tshark/dumpcap). "
-                "Linux: sudo apt install tcpdump  |  Windows: instalar Wireshark",
+                "Capture tool not found (tcpdump/tshark/dumpcap). "
+                "Linux: sudo apt install tcpdump  |  Windows: install Wireshark",
                 "ERROR",
             )
             self._capture_ok = False
             return
 
         tool_name = os.path.basename(tool).lower().replace(".exe", "")
-        self._log(f"Herramienta de captura: {tool_name} ({tool})", "INFO")
+        self._log(f"Capture tool: {tool_name} ({tool})", "INFO")
 
         need_sudo = False
         try:
@@ -462,7 +544,7 @@ class LiveExecutionEngine:
             else:
                 cmd = [tool, "-i", self._iface, "-w", self._pcap_path]
 
-            self._log(f"Comando: {' '.join(cmd)}", "INFO")
+            self._log(f"Command: {' '.join(cmd)}", "INFO")
             self._pcap_proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
@@ -471,18 +553,23 @@ class LiveExecutionEngine:
             if self._pcap_proc.poll() is not None:
                 _, stderr = self._pcap_proc.communicate(timeout=3)
                 err_msg = stderr.decode("utf-8", errors="replace").strip()
-                self._log(f"Captura falló al iniciar: {err_msg}", "ERROR")
+                self._log(f"Capture failed to start: {err_msg}", "ERROR")
                 self._capture_ok = False
                 self._pcap_proc = None
                 return
 
             self._capture_ok = True
-            self._log(f"Captura iniciada en {self._iface}", "OK")
+            self._log(f"Capture started on {self._iface}", "OK")
 
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            self._log(f"Error al iniciar captura: {exc}", "ERROR")
+            self._log(f"Error starting capture: {exc}", "ERROR")
             self._capture_ok = False
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Stop the running PCAP capture process and log the total captured file size.
+    """
     def _stop_capture(self) -> None:
         import platform
         if self._pcap_proc is not None:
@@ -501,22 +588,25 @@ class LiveExecutionEngine:
                         self._pcap_proc.kill()
                     except Exception:  # pylint: disable=broad-exception-caught
                         pass
-            # check all pcap files (rotated or single)
             pcap_files = self._find_pcap_files()
             if pcap_files:
                 total_size = sum(os.path.getsize(f) for f in pcap_files)
                 size_str = f"{total_size / 1048576:.1f} MB" if total_size > 1048576 else f"{total_size / 1024:.1f} KB"
                 self._log(
-                    f"Captura detenida — {len(pcap_files)} archivo(s) PCAP, {size_str} total",
+                    f"Capture stopped — {len(pcap_files)} PCAP file(s), {size_str} total",
                     "OK",
                 )
             else:
-                self._log("Captura detenida — PCAP no generado", "WARN")
+                self._log("Capture stopped — PCAP not generated", "WARN")
             self._pcap_proc = None
             self._capture_ok = False
 
-    # ── event firing ────────────────────────────────────────────
 
+    """
+    Entrada: ev (dict)
+    Salida: None
+    Descripción: Fire a single timeline event — route to the benign or attack executor and schedule a clearer thread for time-boxed events.
+    """
     def _fire_event(self, ev: dict) -> None:
         ev_type = ev.get("event_type", ev.get("type", "unknown"))
         action = ev.get("action", "")
@@ -525,7 +615,7 @@ class LiveExecutionEngine:
         label = ev.get("label", action)
         duration_s = ev.get("duration_s", 0)
 
-        self._log(f"Evento: {label}  {source}→{target}", "INFO")
+        self._log(f"Event: {label}  {source}→{target}", "INFO")
 
         if ev_type == "benign":
             self._active_benign = label
@@ -535,33 +625,46 @@ class LiveExecutionEngine:
             self._exec_attack(action, target, duration_s, source_ip=source)
 
         if duration_s > 0:
+            """
+            Entrada: None
+            Salida: None
+            Descripción: Inner helper that waits duration_s seconds, then clears the active event label and logs completion.
+            """
             def _clear_after():
                 time.sleep(duration_s)
                 if ev_type == "benign":
                     self._active_benign = "—"
                 elif ev_type in ("attack", "malicious"):
                     self._active_attack = "—"
-                self._log(f"Evento finalizado: {label}", "INFO")
+                self._log(f"Event completed: {label}", "INFO")
             threading.Thread(target=_clear_after, daemon=True).start()
 
-    # ── benign execution: HTTP/MQTT to IoT device ───────────────
 
+    """
+    Entrada: action_name (str), target_ip (str), duration_s (int)
+    Salida: None
+    Descripción: Find the benign profile for the target device and execute the action via the matching executor in a background thread.
+    """
     def _exec_benign(self, action_name: str, target_ip: str, duration_s: int) -> None:
-        """Find the profile for the target device and execute the action."""
         profile = None
         for p in self._profiles:
             if p.device_ip == target_ip:
                 profile = p
                 break
         if profile is None:
-            self._log(f"Sin perfil benigno para {target_ip} — evento solo registrado", "WARN")
+            self._log(f"No benign profile for {target_ip} — event only logged", "WARN")
             return
 
         action = profile.get_action(action_name)
         if action is None:
-            self._log(f"Acción '{action_name}' no encontrada en perfil de {target_ip}", "WARN")
+            self._log(f"Action '{action_name}' not found in profile of {target_ip}", "WARN")
             return
 
+        """
+        Entrada: None
+        Salida: None
+        Descripción: Inner worker that runs the benign action over HTTP/MQTT and logs the result.
+        """
         def _run():
             try:
                 if action.protocol in ("http", "https"):
@@ -580,7 +683,6 @@ class LiveExecutionEngine:
                 elif action.protocol == "mqtt":
                     try:
                         from modules.communication.mqtt_executor import MQTTExecutor
-                        # connect to device IP (or broker) on MQTT port
                         mqtt_port = 1883
                         if profile.port in (1883, 8883):
                             mqtt_port = profile.port
@@ -594,18 +696,21 @@ class LiveExecutionEngine:
                         else:
                             self._log(f"MQTT error: {result.error}", "ERROR")
                     except Exception as e:  # pylint: disable=broad-exception-caught
-                        self._log(f"MQTT no disponible: {e}", "ERROR")
+                        self._log(f"MQTT unavailable: {e}", "ERROR")
                 else:
-                    self._log(f"Protocolo '{action.protocol}' no soportado para {action_name}", "WARN")
+                    self._log(f"Protocol '{action.protocol}' not supported for {action_name}", "WARN")
             except Exception as e:  # pylint: disable=broad-exception-caught
-                self._log(f"Error ejecutando {action_name}: {e}", "ERROR")
+                self._log(f"Error executing {action_name}: {e}", "ERROR")
 
         threading.Thread(target=_run, daemon=True).start()
 
-    # ── attack execution: local or SSH to Kali ──────────────────
 
+    """
+    Entrada: source_ip (str), need_ssh (bool)
+    Salida: attacker profile or None
+    Descripción: Find the best attacker profile for the given source IP, preferring SSH-capable profiles with credentials.
+    """
     def _find_attacker_profile(self, source_ip: str, need_ssh: bool = False):
-        """Find best attacker profile for this source IP."""
         if source_ip and source_ip in self._attacker_profiles:
             return self._attacker_profiles[source_ip]
         for p in self._attacker_profiles.values():
@@ -618,12 +723,22 @@ class LiveExecutionEngine:
             return p
         return None
 
+    """
+    Entrada: attack_name (str), target_ip (str), duration_s (int), source_ip (str)
+    Salida: None
+    Descripción: Execute an attack by routing to the correct attacker (local, SSH, or plugin fallback); sudo is handled by the executor.
+    """
     def _exec_attack(self, attack_name: str, target_ip: str, duration_s: int, source_ip: str = "") -> None:
-        """Execute attack — routes to correct attacker, sudo handled by executor."""
-        from modules.attacks import get_attack_class
+        from modules.attacks import get_attack_class, get_plugin_attacks
         attack_def = get_attack_class(attack_name)
         if attack_def is None:
-            self._log(f"Ataque '{attack_name}' no encontrado", "ERROR")
+            plugins = get_plugin_attacks() or []
+            for p in plugins:
+                if p.name == attack_name:
+                    attack_def = p
+                    break
+        if attack_def is None:
+            self._log(f"Attack '{attack_name}' not found", "ERROR")
             return
 
         gateway = ""
@@ -640,8 +755,12 @@ class LiveExecutionEngine:
         profile = self._find_attacker_profile(source_ip, need_ssh=True)
         mode = profile.mode if profile else "local"
         label = profile.tag or profile.device_ip if profile else "local"
-        self._log(f"Ejecutor: {label} ({mode}) root={'sí' if needs_root else 'no'}", "INFO")
+        self._log(f"Executor: {label} ({mode}) root={'yes' if needs_root else 'no'}", "INFO")
         self._log(f"[{attack_def.tool}] {cmd[:80]}", "INFO")
+
+        if hasattr(attack_def, "local_fallback") and attack_def.local_fallback:
+            self._exec_plugin(attack_def, target_ip, duration_s)
+            return
 
         if profile and mode == "ssh" and profile.has_credentials:
             self._exec_attack_ssh(attack_name, cmd, target_ip,
@@ -652,30 +771,37 @@ class LiveExecutionEngine:
                 if platform.system() != "Windows":
                     cmd = f"sudo {cmd}"
                 else:
-                    self._log("sudo no disponible en Windows", "WARN")
+                    self._log("sudo not available on Windows", "WARN")
             self._exec_attack_local(attack_name, cmd, target_ip, duration_s)
 
+    """
+    Entrada: name (str), cmd (str), target_ip (str), source_ip (str), use_sudo (bool)
+    Salida: None
+    Descripción: Run an attack command on a remote attacker via SSH, dispatching to the matching executor in a background thread.
+    """
     def _exec_attack_ssh(self, name: str, cmd: str, target_ip: str, source_ip: str = "",
                          use_sudo: bool = False) -> None:
-        """Run attack command on remote attacker via SSH."""
         executor = None
-        # try getting executor from AttackersController
         if self._get_executor and source_ip:
             executor = self._get_executor(source_ip)
-        # fallback: try all profiles
         if executor is None and self._get_executor:
             for p in self._attacker_profiles.values():
                 if p.mode == "ssh" and p.has_credentials:
                     executor = self._get_executor(p.device_ip)
                     if executor:
-                        self._log(f"Redirigido a {p.tag or p.device_ip}", "INFO")
+                        self._log(f"Redirected to {p.tag or p.device_ip}", "INFO")
                         break
         if executor is None:
             executor = self._ssh_executor
         if executor is None:
-            self._log("Sin ejecutor SSH — configure credenciales en panel Attackers", "ERROR")
+            self._log("No SSH executor — configure credentials in Attackers panel", "ERROR")
             return
 
+        """
+        Entrada: None
+        Salida: None
+        Descripción: Inner worker that runs the SSH attack command and logs the result.
+        """
         def _run():
             try:
                 result = executor.execute(target_ip, cmd, timeout=120, use_sudo=use_sudo)
@@ -690,8 +816,65 @@ class LiveExecutionEngine:
                 self._log(f"SSH error: {e}", "ERROR")
         threading.Thread(target=_run, daemon=True).start()
 
+    """
+    Entrada: attack_def, target_ip (str), duration_s (int)
+    Salida: None
+    Descripción: Execute a plugin attack by dynamically importing and calling its Python run() function in a background thread.
+    """
+    def _exec_plugin(self, attack_def, target_ip: str, duration_s: int) -> None:
+        """
+        Entrada: None
+        Salida: None
+        Descripción: Inner worker that imports the plugin module, calls its run function, and logs the result.
+        """
+        def _run():
+            try:
+                fallback = attack_def.local_fallback
+                parts = fallback.split(":")
+                mod_name = parts[0]
+                func_name = parts[1] if len(parts) > 1 else "run"
+
+                if mod_name.startswith("plugins.attacks."):
+                    full_mod = mod_name
+                elif mod_name.startswith("plugins."):
+                    full_mod = mod_name
+                else:
+                    full_mod = f"plugins.attacks.{mod_name}"
+
+                self._log(f"Plugin: {full_mod}.{func_name}()", "INFO")
+
+                import importlib
+                mod = importlib.import_module(full_mod)
+                func = getattr(mod, func_name)
+
+                result = func(
+                    target_ip=target_ip,
+                    port=80,
+                    duration=duration_s or 30,
+                )
+
+                if isinstance(result, dict):
+                    if result.get("success"):
+                        self._log(f"Plugin OK: {attack_def.name} — {result.get('message', '')}", "OK")
+                    else:
+                        self._log(f"Plugin error: {result.get('message', 'unknown')}", "ERROR")
+                else:
+                    self._log(f"Plugin completed: {attack_def.name}", "OK")
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                self._log(f"Plugin error: {attack_def.name}: {exc}", "ERROR")
+        threading.Thread(target=_run, daemon=True).start()
+
+    """
+    Entrada: name (str), cmd (str), target_ip (str), duration_s (int)
+    Salida: None
+    Descripción: Run an attack command locally on this machine in a background subprocess thread.
+    """
     def _exec_attack_local(self, name: str, cmd: str, target_ip: str, duration_s: int) -> None:
-        """Run attack command locally on this machine."""
+        """
+        Entrada: None
+        Salida: None
+        Descripción: Inner worker that runs the local attack command via subprocess and logs the result.
+        """
         def _run():
             try:
                 self._log(f"Local exec: {cmd[:60]}…", "INFO")
@@ -714,21 +897,27 @@ class LiveExecutionEngine:
                 self._log(f"Local exec error: {e}", "ERROR")
         threading.Thread(target=_run, daemon=True).start()
 
-    # ── NFStream + flow tagging by device role ──────────────────
 
+    """
+    Entrada: pcap_files (list | None)
+    Salida: None
+    Descripción: Extract flows from PCAP file(s); tries NFStream first and falls back to tshark.
+    """
     def _extract_flows(self, pcap_files: list = None) -> None:
-        """Extract flows from PCAP(s). Try NFStream first, fallback to tshark."""
         self._pcap_files = pcap_files or [self._pcap_path]
         if self._extract_flows_nfstream():
             return
         if self._extract_flows_tshark():
             return
-        self._log("No se pudo extraer flujos — instalar nfstream (pip install nfstream) o tshark (Wireshark)", "ERROR")
+        self._log("Could not extract flows — install nfstream (pip install nfstream) or tshark (Wireshark)", "ERROR")
 
+    """
+    Entrada: flow
+    Salida: dict
+    Descripción: Extract flow attributes safely — works with any nfstream version. Uses a curated attribute list with fallbacks for src/dst IP.
+    """
     @staticmethod
     def _safe_flow_to_dict(flow) -> dict:
-        """Extract flow attributes safely — works with any nfstream version."""
-        # core attributes that exist in all nfstream versions
         SAFE_ATTRS = [
             "id", "src_ip", "dst_ip", "src_port", "dst_port",
             "protocol", "ip_version", "vlan_id",
@@ -748,7 +937,6 @@ class LiveExecutionEngine:
                     row[attr] = val
             except (AttributeError, TypeError):
                 pass
-        # ensure we at least have src/dst IPs
         if "src_ip" not in row:
             for fallback in ["src_addr", "source_ip", "ip_src"]:
                 try:
@@ -765,28 +953,20 @@ class LiveExecutionEngine:
                     pass
         return row
 
+    """
+    Entrada: None
+    Salida: list
+    Descripción: Collect all PCAP chunks; delegates to _find_pcap_files which handles renaming.
+    """
     def _collect_rotated_pcaps(self) -> list:
-        """Collect all PCAP files created by rotation."""
-        pcap_dir = os.path.dirname(self._pcap_path)
-        base = os.path.basename(self._pcap_path).rsplit(".", 1)[0]
-        files = []
-        try:
-            for f in sorted(os.listdir(pcap_dir)):
-                full = os.path.join(pcap_dir, f)
-                if not os.path.isfile(full):
-                    continue
-                if f.startswith(base) and any(
-                    f.endswith(ext) for ext in (".pcap", ".pcapng")
-                ):
-                    files.append(full)
-        except OSError:
-            pass
-        if not files and os.path.exists(self._pcap_path):
-            files.append(self._pcap_path)
-        return files
+        return self._find_pcap_files()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: On Linux, fix file ownership of output artifacts if they were created by sudo.
+    """
     def _fix_output_permissions(self) -> None:
-        """On Linux, fix file ownership if created by sudo."""
         if os.name == "nt":
             return
         sudo_user = os.environ.get("SUDO_USER", "")
@@ -799,7 +979,6 @@ class LiveExecutionEngine:
             for path in [self._pcap_path, self._flows_path, self._meta_path]:
                 if os.path.exists(path):
                     os.chown(path, uid, gid)
-            # also fix rotated pcaps
             for f in self._collect_rotated_pcaps():
                 try:
                     os.chown(f, uid, gid)
@@ -808,30 +987,63 @@ class LiveExecutionEngine:
         except (KeyError, OSError):
             pass
 
-    def _classify_flow(self, src_ip: str, dst_ip: str) -> tuple[str, str, str]:
-        """Returns (src_role, dst_role, flow_label)."""
-        src_role = self._device_map.get(src_ip, "external")
-        dst_role = self._device_map.get(dst_ip, "external")
-        if src_role == "attacker" or dst_role == "attacker":
-            return src_role, dst_role, "attack"
-        if src_role in ("benign", "target") or dst_role in ("benign", "target"):
-            return src_role, dst_role, "benign"
-        return src_role, dst_role, "unknown"
+    """
+    Entrada: src_ip (str), dst_ip (str)
+    Salida: tuple
+    Descripción: Classify a flow and return (src_role, dst_role, label, sublabel, kill_chain, subcategory) based on the device map and matching attack events.
+    """
+    def _classify_flow(self, src_ip: str, dst_ip: str) -> tuple:
+        src_role = self._device_map.get(src_ip, "unknown")
+        dst_role = self._device_map.get(dst_ip, "unknown")
 
+        if src_role == "attacker" or dst_role == "attacker":
+            label = "attack"
+        else:
+            label = "benign"
+
+        sublabel = "artificial"
+
+        kill_chain = ""
+        subcategory = ""
+        if label == "attack":
+            for ev in self._events:
+                if ev.get("event_type") == "attack":
+                    ev_target = ev.get("target", "")
+                    ev_source = ev.get("source", "")
+                    if (dst_ip == ev_target or src_ip == ev_target) and \
+                       (src_ip == ev_source or dst_ip == ev_source or not ev_source):
+                        action = ev.get("action", "")
+                        from modules.attacks import get_attack_class, get_plugin_attacks
+                        atk = get_attack_class(action)
+                        if atk is None:
+                            plugins = get_plugin_attacks() or []
+                            for p in plugins:
+                                if p.name == action:
+                                    atk = p; break
+                        if atk:
+                            kill_chain = getattr(atk, "kill_chain", "")
+                            subcategory = getattr(atk, "subcategory", "")
+                        break
+
+        return src_role, dst_role, label, sublabel, kill_chain, subcategory
+    """
+    Entrada: None
+    Salida: bool
+    Descripción: Try NFStream extraction from all PCAP files; returns True on success.
+    """
     def _extract_flows_nfstream(self) -> bool:
-        """Try NFStream extraction from all PCAP files. Returns True on success."""
-        self._log("Intentando NFStream…", "INFO")
+        self._log("Attempting NFStream…", "INFO")
         try:
             from nfstream import NFStreamer
         except ImportError:
-            self._log("nfstream no instalado", "WARN")
+            self._log("nfstream not installed", "WARN")
             return False
 
         try:
             pcap_files = self._collect_rotated_pcaps()
             if not pcap_files:
                 pcap_files = [self._pcap_path]
-            self._log(f"Procesando {len(pcap_files)} archivo(s) PCAP…", "INFO")
+            self._log(f"Processing {len(pcap_files)} PCAP file(s)…", "INFO")
 
             count = 0
             stats = {"attack": 0, "benign": 0, "unknown": 0}
@@ -854,7 +1066,7 @@ class LiveExecutionEngine:
 
                     for flow in streamer:
                         row = self._safe_flow_to_dict(flow)
-                        src_role, dst_role, label = self._classify_flow(
+                        src_role, dst_role, label, sublabel, kill_chain, subcat = self._classify_flow(
                             row.get("src_ip", ""),
                             row.get("dst_ip", ""),
                         )
@@ -863,7 +1075,10 @@ class LiveExecutionEngine:
                             continue
                         row["src_role"] = src_role
                         row["dst_role"] = dst_role
-                        row["flow_label"] = label
+                        row["label"] = label
+                        row["sublabel"] = sublabel
+                        row["kill_chain"] = kill_chain
+                        row["subcategory"] = subcat
                         if writer is None:
                             writer = csv.DictWriter(f, fieldnames=row.keys())
                             writer.writeheader()
@@ -872,31 +1087,34 @@ class LiveExecutionEngine:
 
             self._flows_count = count
             self._log(
-                f"NFStream OK: {count} flujos ({stats}) "
+                f"NFStream OK: {count} flows ({stats}) "
                 f"→ {os.path.basename(self._flows_path)}",
                 "OK",
             )
             self._fix_output_permissions()
             return True
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            self._log(f"NFStream falló: {exc}", "WARN")
+            self._log(f"NFStream failed: {exc}", "WARN")
             return False
 
+    """
+    Entrada: None
+    Salida: bool
+    Descripción: Fallback flow extraction using tshark (shipped with Wireshark); returns True on success.
+    """
     def _extract_flows_tshark(self) -> bool:
-        """Fallback: extract flows using tshark (comes with Wireshark)."""
         import shutil
         tshark = shutil.which("tshark")
         if not tshark:
-            # search Windows paths
             import glob
             for p in glob.glob(r"C:\Program Files*\Wireshark\tshark.exe"):
                 tshark = p
                 break
         if not tshark:
-            self._log("tshark no encontrado", "WARN")
+            self._log("tshark not found", "WARN")
             return False
 
-        self._log("Usando tshark para extraer flujos…", "INFO")
+        self._log("Using tshark to extract flows…", "INFO")
         try:
             fields = [
                 "frame.number", "frame.time", "frame.len",
@@ -908,7 +1126,6 @@ class LiveExecutionEngine:
             for fld in fields:
                 field_args.extend(["-e", fld])
 
-            # process first PCAP (tshark processes one at a time)
             pcap_source = self._pcap_files[0] if self._pcap_files else self._pcap_path
             cmd = [
                 tshark, "-r", pcap_source,
@@ -924,10 +1141,9 @@ class LiveExecutionEngine:
                 self._log(f"tshark error: {result.stderr[:200]}", "ERROR")
                 return False
 
-            # parse tshark output and add role columns
             lines = result.stdout.strip().split("\n")
             if len(lines) < 2:
-                self._log("tshark: sin paquetes", "WARN")
+                self._log("tshark: no packets", "WARN")
                 return False
 
             count = 0
@@ -943,7 +1159,6 @@ class LiveExecutionEngine:
                     cols = line.split(",")
                     if len(cols) < len(fields):
                         continue
-                    # ip.src is at index 3, ip.dst at index 4
                     src_ip = cols[3].strip('"') if len(cols) > 3 else ""
                     dst_ip = cols[4].strip('"') if len(cols) > 4 else ""
                     src_role, dst_role, label = self._classify_flow(src_ip, dst_ip)
@@ -955,7 +1170,7 @@ class LiveExecutionEngine:
                     count += 1
 
             self._flows_count = count
-            self._log(f"tshark OK: {count} paquetes ({stats}) → {os.path.basename(self._flows_path)}", "OK")
+            self._log(f"tshark OK: {count} packets ({stats}) → {os.path.basename(self._flows_path)}", "OK")
             return True
 
         except subprocess.TimeoutExpired:
@@ -965,10 +1180,13 @@ class LiveExecutionEngine:
             self._log(f"tshark error: {exc}", "ERROR")
             return False
 
-    # ── execution log file ───────────────────────────────────────
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Save the event log to a text file inside the output directory.
+    """
     def _save_execution_log(self) -> None:
-        """Save the event log to a text file in the output directory."""
         try:
             log_dir = os.path.join(os.path.dirname(os.path.dirname(self._pcap_path)), "logs")
             os.makedirs(log_dir, exist_ok=True)
@@ -980,12 +1198,16 @@ class LiveExecutionEngine:
                 f.write("========================\n\n")
                 for entry in EVENT_LOG.entries():
                     f.write(f"{entry.timestamp} {entry.level:<5} {entry.message}\n")
-            self._log(f"Log guardado: {os.path.basename(log_path)}", "OK")
+            self._log(f"Log saved: {os.path.basename(log_path)}", "OK")
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            self._log(f"Error guardando log: {exc}", "WARN")
+            self._log(f"Error saving log: {exc}", "WARN")
 
-    # ── metadata ────────────────────────────────────────────────
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Generate and write the metadata JSON file summarizing the execution, artifacts, and enriched event metadata.
+    """
     def _generate_metadata(self) -> None:
         config = self._config
         exp_id = getattr(config, "experiment_id", "EXP")
@@ -994,7 +1216,16 @@ class LiveExecutionEngine:
         actual_dur = (self._end_time - self._start_time) if self._end_time else 0.0
 
         artifacts = []
-        for path in (self._pcap_path, self._flows_path, self._meta_path):
+        for pf in self._find_pcap_files():
+            if os.path.exists(pf):
+                artifacts.append({
+                    "name": os.path.basename(pf),
+                    "type": "PCAP",
+                    "size_bytes": os.path.getsize(pf),
+                    "sha256": self._sha256(pf),
+                    "path": pf,
+                })
+        for path in (self._flows_path, self._meta_path):
             if os.path.exists(path):
                 artifacts.append({
                     "name": os.path.basename(path),
@@ -1021,29 +1252,43 @@ class LiveExecutionEngine:
             "events_total": len(self._events),
             "events_fired": self._fired,
             "flows_extracted": self._flows_count,
-            "events": self._events,
+            "events": [self._enrich_event_metadata(ev) for ev in self._events],
             "artifacts": artifacts,
         }
 
         try:
             with open(self._meta_path, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, indent=2, default=str)
-            self._log(f"Metadatos: {os.path.basename(self._meta_path)}", "OK")
+            self._log(f"Metadata: {os.path.basename(self._meta_path)}", "OK")
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            self._log(f"Error generando metadatos: {exc}", "ERROR")
+            self._log(f"Error generating metadata: {exc}", "ERROR")
 
-    # ── helpers ─────────────────────────────────────────────────
 
+    """
+    Entrada: msg (str), level (str)
+    Salida: None
+    Descripción: Forward a log message to the external logger callback if one is set.
+    """
     def _log(self, msg: str, level: str = "INFO") -> None:
         if self._log_fn:
             self._log_fn(msg, level)
 
+    """
+    Entrada: None
+    Salida: str
+    Descripción: Return a formatted label for the next scheduled timeline event, or '—' if none.
+    """
     def _format_next_event(self) -> str:
         if not self._events:
             return "—"
         ev = sorted(self._events, key=lambda e: e.get("offset_s", 0))
         return self._format_event_label(ev[0]) if ev else "—"
 
+    """
+    Entrada: ev (dict)
+    Salida: str
+    Descripción: Format a single event as 'label → target HH:MM:SS' using its offset in seconds.
+    """
     @staticmethod
     def _format_event_label(ev: dict) -> str:
         label = ev.get("label", ev.get("action", "?"))
@@ -1053,21 +1298,81 @@ class LiveExecutionEngine:
         h, m = divmod(m, 60)
         return f"{label} → {target} {h:02d}:{m:02d}:{s:02d}"
 
+    """
+    Entrada: val
+    Salida: float
+    Descripción: Parse a duration value into seconds. Accepts HH:MM:SS, DD:HH:MM:SS, or suffixed formats (30s, 5m, 2h, 7d, 2w, 1M).
+    """
     @staticmethod
     def _parse_duration(val) -> float:
         if isinstance(val, (int, float)):
             return float(val)
-        if isinstance(val, str) and ":" in val:
-            parts = val.split(":")
-            if len(parts) == 3:
-                return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
-            if len(parts) == 2:
-                return int(parts[0]) * 60 + int(parts[1])
+        if isinstance(val, str):
+            val = val.strip()
+            if val and val[-1] in "smhdwM" and val[:-1].replace(".", "").isdigit():
+                num = float(val[:-1])
+                unit = val[-1]
+                multipliers = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "M": 2592000}
+                return num * multipliers.get(unit, 1)
+            if ":" in val:
+                parts = val.split(":")
+                try:
+                    if len(parts) == 4:
+                        return int(parts[0]) * 86400 + int(parts[1]) * 3600 + int(parts[2]) * 60 + int(parts[3])
+                    if len(parts) == 3:
+                        return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                    if len(parts) == 2:
+                        return int(parts[0]) * 60 + int(parts[1])
+                except ValueError:
+                    pass
         try:
             return float(val)
         except (ValueError, TypeError):
             return 0.0
 
+    """
+    Entrada: ev (dict)
+    Salida: dict
+    Descripción: Enrich an event dict with kill-chain classification, MITRE reference, and tool metadata for attack events.
+    """
+    def _enrich_event_metadata(self, ev: dict) -> dict:
+        from modules.devices.host_detector import get_host_ip
+        source = ev.get("source", "")
+        if source and source not in self._device_map:
+            source = get_host_ip()
+        meta = {
+            "event_type": ev.get("event_type", ""),
+            "action": ev.get("action", ""),
+            "target": ev.get("target", ""),
+            "source": source,
+            "scheduled_dt": ev.get("scheduled_dt", ""),
+            "duration_s": ev.get("duration_s", 0),
+            "status": ev.get("status", ""),
+            "label": "attack" if ev.get("event_type") == "attack" else "benign",
+            "sublabel": "artificial",
+        }
+        if ev.get("event_type") == "attack":
+            action = ev.get("action", "")
+            from modules.attacks import get_attack_class, get_plugin_attacks
+            atk = get_attack_class(action)
+            if atk is None:
+                plugins = get_plugin_attacks() or []
+                for p in plugins:
+                    if p.name == action:
+                        atk = p
+                        break
+            if atk:
+                meta["category"] = getattr(atk, "kill_chain", "")
+                meta["subcategory"] = getattr(atk, "subcategory", "")
+                meta["mitre_ref"] = getattr(atk, "mitre_ref", "")
+                meta["tool"] = getattr(atk, "tool", "")
+        return meta
+
+    """
+    Entrada: path (str)
+    Salida: str
+    Descripción: Compute the SHA-256 hex digest of a file, or return an empty string on error.
+    """
     @staticmethod
     def _sha256(path: str) -> str:
         h = hashlib.sha256()

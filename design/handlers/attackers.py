@@ -17,46 +17,72 @@ from design.overlays import text_input_overlay
 
 
 class AttackersController:
+    """
+    Entrada: app
+    Salida: None
+    Descripción: init
+    """
     def __init__(self, app: "MenuApp") -> None:
         self._app = app
-        self._profiles: dict[str, AttackerProfile] = {}  # ip → profile
+        self._profiles: dict[str, AttackerProfile] = {}
         self._cursor: int = 0
         self._zone: str = "table"
         self._detail_cursor: int = -1
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: profiles list
+    """
     @property
     def profiles_list(self) -> list[AttackerProfile]:
         self._sync_from_devices()
         return list(self._profiles.values())
 
+    """
+    Entrada: ip
+    Salida: None
+    Descripción: get profile
+    """
     def get_profile(self, ip: str) -> Optional[AttackerProfile]:
         self._sync_from_devices()
         return self._profiles.get(ip)
 
+    """
+    Entrada: None
+    Salida: Optional[AttackerProfile]
+    Descripción: If exactly 1 attacker, return it. Otherwise None.
+    """
     def get_single_attacker(self) -> Optional[AttackerProfile]:
-        """If exactly 1 attacker, return it. Otherwise None."""
         profs = self.profiles_list
         return profs[0] if len(profs) == 1 else None
 
+    """
+    Entrada: ip
+    Salida: Optional[SSHExecutor]
+    Descripción: Get SSH executor for an attacker by IP.
+    """
     def get_executor(self, ip: str) -> Optional[SSHExecutor]:
-        """Get SSH executor for an attacker by IP."""
         p = self.get_profile(ip)
         if p is None:
             return None
         if p.is_local:
-            return None  # local execution, no SSH needed
+            return None
         return SSHExecutor(
             host=p.device_ip, user=p.ssh_user, port=p.ssh_port,
             key_file=p.ssh_key, password=p.ssh_password,
         )
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Sync profiles with devices that have role=attacker.
+    """
     def _sync_from_devices(self):
-        """Sync profiles with devices that have role=attacker."""
         ctrl = getattr(self._app, "_ctrl_devices", None)
         if ctrl is None:
             return
         attacker_ips = {d.ip for d in ctrl.devices if d.role == "attacker"}
-        # add new attackers
         for ip in attacker_ips:
             if ip not in self._profiles:
                 dev = next((d for d in ctrl.devices if d.ip == ip), None)
@@ -66,19 +92,27 @@ class AttackersController:
                     device_ip=ip, tag=tag or hostname or ip,
                     mode="local" if any(t in (dev.tags if dev else []) for t in ("host", "localhost")) else "ssh",
                 )
-        # remove profiles for devices no longer attacker
         for ip in list(self._profiles.keys()):
             if ip not in attacker_ips:
                 del self._profiles[ip]
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: selected
+    """
     def _selected(self) -> Optional[AttackerProfile]:
         profs = self.profiles_list
         if profs and 0 <= self._cursor < len(profs):
             return profs[self._cursor]
         return None
 
+    """
+    Entrada: key
+    Salida: bool
+    Descripción: handle key
+    """
     def handle_key(self, key: int) -> bool:
-        # always sync with devices on any interaction
         self._refresh()
 
         if key in (ord("t"), ord("T")):
@@ -127,9 +161,13 @@ class AttackersController:
                 return True
         return False
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: refresh
+    """
     def _refresh(self):
-        profs = self.profiles_list  # triggers _sync_from_devices
-        # clamp cursor
+        profs = self.profiles_list
         if profs and self._cursor >= len(profs):
             self._cursor = max(0, len(profs) - 1)
         updated = build_attackers_section(
@@ -138,6 +176,11 @@ class AttackersController:
         )
         self._app.replace_section("attackers", updated)
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: edit field
+    """
     def _edit_field(self):
         p = self._selected()
         if not p or self._app._stdscr is None:
@@ -148,15 +191,15 @@ class AttackersController:
 
         if attr == "mode":
             from design.Menu import choice_select_overlay
-            new = choice_select_overlay(stdscr, "Tipo de conexión", ["local", "ssh"], p.mode)
+            new = choice_select_overlay(stdscr, "Connection type", ["local", "ssh"], p.mode)
             if new and new != p.mode:
                 p.mode = new
-                EVENT_LOG.info(f"Atacante {p.label}: modo → {new}")
+                EVENT_LOG.info(f"Attacker {p.label}: mode → {new}")
         elif attr == "ssh_password":
-            pwd = text_input_overlay(stdscr, "SSH Password (no se guarda)", "")
+            pwd = text_input_overlay(stdscr, "SSH Password (not saved)", "")
             if pwd is not None:
                 p.ssh_password = pwd
-                EVENT_LOG.info(f"Atacante {p.label}: contraseña configurada")
+                EVENT_LOG.info(f"Attacker {p.label}: password set")
         elif attr == "ssh_user":
             new = text_input_overlay(stdscr, "SSH User", p.ssh_user)
             if new is not None:
@@ -174,29 +217,43 @@ class AttackersController:
                 p.ssh_key = new
         self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do test
+    """
     def _do_test(self):
         p = self._selected()
         if not p:
             return
         if p.is_local:
-            EVENT_LOG.ok(f"Atacante {p.label}: local (sin test SSH)")
+            EVENT_LOG.ok(f"Attacker {p.label}: local (no SSH test)")
             return
         if not p.ssh_password and not p.ssh_key:
-            EVENT_LOG.error(f"Atacante {p.label}: sin credenciales SSH")
+            EVENT_LOG.error(f"Attacker {p.label}: no SSH credentials")
             return
-        EVENT_LOG.info(f"Probando SSH → {p.device_ip}…")
+        EVENT_LOG.info(f"Testing SSH → {p.device_ip}…")
         executor = self.get_executor(p.device_ip)
         if executor:
             ok, detail = executor.test_connection()
             if ok:
                 EVENT_LOG.ok(f"SSH OK → {p.device_ip}")
             else:
-                EVENT_LOG.error(f"SSH falló → {p.device_ip}: {detail}")
+                EVENT_LOG.error(f"SSH failed → {p.device_ip}: {detail}")
 
-    # serialization
+    """
+    Entrada: None
+    Salida: None
+    Descripción: to list
+    """
     def to_list(self) -> list[dict]:
         return [p.to_dict() for p in self._profiles.values()]
 
+    """
+    Entrada: data
+    Salida: None
+    Descripción: load from list
+    """
     def load_from_list(self, data: list[dict]):
         self._profiles = {}
         for d in data:
