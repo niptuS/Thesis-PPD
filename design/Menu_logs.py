@@ -1,3 +1,9 @@
+"""
+Entrada: None
+Salida: Section / EventLog
+Descripción: Builds the Logs section showing the live event stream with
+             filter support, plus the shared EventLog ring buffer.
+"""
 from __future__ import annotations
 
 import threading
@@ -5,9 +11,9 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from design.models import Section
+from modules.i18n import t
 
 
-# ── Log levels ──────────────────────────────────────────────────────
 LEVEL_INFO = "INFO"
 LEVEL_WARN = "WARN"
 LEVEL_ERROR = "ERROR"
@@ -19,21 +25,39 @@ FILTER_LABELS = ["All", "Info", "Warn", "Error"]
 
 @dataclass
 class LogEntry:
+    """
+    Entrada: timestamp (str), level (str), message (str)
+    Salida: LogEntry instance
+    Descripción: Dataclass holding a single log entry.
+    """
     timestamp: str
     level: str
     message: str
 
 
 class EventLog:
-    """Thread-safe ring-buffer of log events."""
+    """
+    Entrada: None
+    Salida: EventLog instance
+    Descripción: Thread-safe ring-buffer of log events.
+    """
 
     MAX_ENTRIES = 200
 
+    '''
+    Entrada: None
+    Salida: None
+    Descripción: Initializes the EventLog with an empty entries list and lock.
+    '''
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._entries: list[LogEntry] = []
 
-    # ── write ────────────────────────────────────────────────────
+    '''
+    Entrada: message (str), level (str)
+    Salida: None
+    Descripción: Appends a new entry, trimming to MAX_ENTRIES.
+    '''
     def add(self, message: str, level: str = LEVEL_INFO) -> None:
         entry = LogEntry(
             timestamp=datetime.now().strftime("%H:%M:%S"),
@@ -45,33 +69,77 @@ class EventLog:
             if len(self._entries) > self.MAX_ENTRIES:
                 self._entries = self._entries[-self.MAX_ENTRIES:]
 
-    def info(self, msg: str) -> None: self.add(msg, LEVEL_INFO)
-    def warn(self, msg: str) -> None: self.add(msg, LEVEL_WARN)
-    def error(self, msg: str) -> None: self.add(msg, LEVEL_ERROR)
-    def ok(self, msg: str) -> None: self.add(msg, LEVEL_OK)
+    '''
+    Entrada: msg (str)
+    Salida: None
+    Descripción: Adds an INFO-level entry.
+    '''
+    def info(self, msg: str) -> None:
+        self.add(msg, LEVEL_INFO)
 
-    # ── read ─────────────────────────────────────────────────────
+    '''
+    Entrada: msg (str)
+    Salida: None
+    Descripción: Adds a WARN-level entry.
+    '''
+    def warn(self, msg: str) -> None:
+        self.add(msg, LEVEL_WARN)
+
+    '''
+    Entrada: msg (str)
+    Salida: None
+    Descripción: Adds an ERROR-level entry.
+    '''
+    def error(self, msg: str) -> None:
+        self.add(msg, LEVEL_ERROR)
+
+    '''
+    Entrada: msg (str)
+    Salida: None
+    Descripción: Adds an OK-level entry.
+    '''
+    def ok(self, msg: str) -> None:
+        self.add(msg, LEVEL_OK)
+
+    '''
+    Entrada: level_filter (str)
+    Salida: list[LogEntry]
+    Descripción: Returns entries filtered by level (or all).
+    '''
     def entries(self, level_filter: str = "All") -> list[LogEntry]:
         with self._lock:
             if level_filter == "All":
                 return list(self._entries)
             return [e for e in self._entries if e.level == level_filter.upper()]
 
+    '''
+    Entrada: None
+    Salida: int
+    Descripción: Returns the total number of entries.
+    '''
     def count(self) -> int:
         with self._lock:
             return len(self._entries)
 
+    '''
+    Entrada: None
+    Salida: None
+    Descripción: Clears all entries.
+    '''
     def clear(self) -> None:
         with self._lock:
             self._entries.clear()
 
 
-# ── singleton ───────────────────────────────────────────────────────
 EVENT_LOG = EventLog()
 
 
-# ── section builder ─────────────────────────────────────────────────
 
+"""
+Entrada: log (EventLog|None), level_filter (str), scroll_offset (int), max_visible (int)
+Salida: Section
+Descripción: Builds the logs section with localized labels and hints.
+"""
 def build_logs_section(
     log: EventLog | None = None,
     level_filter: str = "All",
@@ -81,18 +149,16 @@ def build_logs_section(
     elog = log if log is not None else EVENT_LOG
     entries = elog.entries(level_filter)
 
-    # ── header
     content: list[str] = [
-        "─── Live Event Stream ────────────────────────────────",
+        f"─── {t('logs', 'title')} ────────────────────────────────",
     ]
 
     if not entries:
         content.append("")
-        content.append("  (sin eventos — ejecute un escaneo o inicie un escenario)")
+        content.append(f"  {t('logs', 'no_events')}")
         content.append("")
     else:
         content.append("")
-        # apply scroll — show from offset up to max_visible lines
         visible = entries[scroll_offset : scroll_offset + max_visible]
         for e in visible:
             level_tag = e.level.ljust(5)
@@ -103,15 +169,15 @@ def build_logs_section(
         if total > max_visible:
             content.append("")
             content.append(
-                f"  ── mostrando {scroll_offset + 1}-{showing_end} de {total}"
-                "  (↑↓ desplazar) ──"
+                "  "
+                + t("logs", "showing_range", scroll_offset + 1, showing_end, total)
             )
         content.append("")
 
     return Section(
         key="logs",
         label="Logs",
-        hint=f"↑↓=desplazar · Eventos: {elog.count()}",
+        hint=t("logs", "hint", elog.count()),
         content_lines=content,
         actions=[],
         field_map=[],

@@ -9,6 +9,11 @@ DEVICE_TYPES = [
 ]
 
 
+"""
+Entrada: device_type, device_ip (str), device_tag (str)
+Salida: BenignProfile
+Descripción: Creates an empty template benign profile for the given device type.
+"""
 def create_template_profile(device_type, device_ip="", device_tag=""):
     return BenignProfile(
         device_type=device_type, device_ip=device_ip,

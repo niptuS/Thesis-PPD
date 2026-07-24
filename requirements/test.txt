@@ -1,0 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────
+# SH-DATASET — test dependencies (unit test runner)
+# Install with:  pip install -r requirements/test.txt
+# ─────────────────────────────────────────────────────────────────────
+
+-r base.txt
+
+# Test runner — drops into the unittest suite in tests/
+pytest==8.4.1

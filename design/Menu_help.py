@@ -3,7 +3,7 @@ from design.models import Section
 HELP_SECTION = Section(
     key="help",
     label="Help",
-    hint="Referencia rápida del flujo completo. Esc=volver",
+    hint="Quick reference for the full flow. Esc=back",
     content_lines=[
         "─── Navigation ───────────────────────────────────",
         "",

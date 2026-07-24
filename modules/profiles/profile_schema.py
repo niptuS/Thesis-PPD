@@ -12,21 +12,36 @@ import uuid
 class DeviceAction:  # pylint: disable=no-member
     """A single action a device can perform."""
     action_id: str = ""
-    name: str = ""          # e.g. "turn_on", "set_brightness"
-    description: str = ""          # human-readable description
-    protocol: str = "http"      # http | mqtt | coap | ssh
-    method: str = "POST"      # HTTP method or mqtt topic action
-    endpoint: str = ""          # e.g. "/api/light/on" or "device/command"
-    payload: str = ""          # JSON payload template, e.g. '{"state": "on"}'
+    name: str = ""
+    description: str = ""
+    protocol: str = "http"
+    method: str = "POST"
+    endpoint: str = ""
+    payload: str = ""
     headers: dict = field(default_factory=dict)
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Generates a short action_id if one was not provided.
+    """
     def __post_init__(self):
         if not self.action_id:
             self.action_id = uuid.uuid4().hex[:8]
 
+    """
+    Entrada: None
+    Salida: dict
+    Descripción: Converts the action to a dictionary.
+    """
     def to_dict(self) -> dict:
         return asdict(self)
 
+    """
+    Entrada: d (dict)
+    Salida: DeviceAction
+    Descripción: Builds a DeviceAction from a dictionary, ignoring unknown keys.
+    """
     @classmethod
     def from_dict(cls, d: dict) -> "DeviceAction":
         return cls(**{
@@ -39,34 +54,59 @@ class DeviceAction:  # pylint: disable=no-member
 class BenignProfile:
     """Profile of a device: what it is and what it can do."""
     profile_id: str = ""
-    device_type: str = ""     # bulb, plug, camera, sensor, speaker
-    device_ip: str = ""     # linked device IP
-    device_tag: str = ""     # user-assigned tag for identification
-    protocol: str = "http"  # default protocol
+    device_type: str = ""
+    device_ip: str = ""
+    device_tag: str = ""
+    protocol: str = "http"
     port: int = 80
     auth_user: str = ""
     auth_pass: str = ""
     actions: list[DeviceAction] = field(default_factory=list)
     notes: str = ""
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Generates a short profile_id if one was not provided.
+    """
     def __post_init__(self):
         if not self.profile_id:
             self.profile_id = uuid.uuid4().hex[:8]
 
+    """
+    Entrada: None
+    Salida: list[str]
+    Descripción: Returns the list of action names defined in this profile.
+    """
     def action_names(self) -> list[str]:
         return [a.name for a in self.actions]
 
+    """
+    Entrada: name (str)
+    Salida: Optional[DeviceAction]
+    Descripción: Returns the action with the given name, or None if not found.
+    """
     def get_action(self, name: str) -> Optional[DeviceAction]:
         for a in self.actions:
             if a.name == name:
                 return a
         return None
 
+    """
+    Entrada: None
+    Salida: dict
+    Descripción: Converts the profile to a dictionary.
+    """
     def to_dict(self) -> dict:
         d = asdict(self)
         d["actions"] = [a.to_dict() for a in self.actions]
         return d
 
+    """
+    Entrada: d (dict)
+    Salida: BenignProfile
+    Descripción: Builds a BenignProfile from a dictionary.
+    """
     @classmethod
     def from_dict(cls, d: dict) -> "BenignProfile":
         actions = [DeviceAction.from_dict(a) for a in d.get("actions", [])]

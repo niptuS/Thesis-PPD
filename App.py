@@ -7,8 +7,20 @@ from modules.scenario_editor.config_loader import ConfigLoadError
 from modules.scenario_editor.config_writer import ConfigWriteError
 
 
+"""
+Entrada: app (MenuApp)
+Salida: callable
+Descripción: Builds and returns an action-handler callable that dispatches
+             section actions (load, save, etc.) for the given app.
+"""
 def _build_handler(app: MenuApp) -> callable:
 
+    """
+    Entrada: section_key (str), action (str)
+    Salida: None
+    Descripción: Inner handler that routes action codes (ctrl_o, ctrl_s, etc.)
+                 to the appropriate load/save helpers on the app.
+    """
     def action_handler(section_key: str, action: str) -> None:
 
         if action.startswith("ctrl_o:"):
@@ -39,6 +51,12 @@ def _build_handler(app: MenuApp) -> callable:
     return action_handler
 
 
+"""
+Entrada: app (MenuApp), file_path (str)
+Salida: None
+Descripción: Loads a scenario from the given file path into the app,
+             resolving SAVES_DIR-relative paths, and reports status.
+"""
 def _handle_load(app: MenuApp, file_path: str) -> None:
     path = Path(file_path)
     if not path.exists():
@@ -56,6 +74,12 @@ def _handle_load(app: MenuApp, file_path: str) -> None:
         app.set_status(f"Load error: {exc}", "err")
 
 
+"""
+Entrada: app (MenuApp)
+Salida: None
+Descripción: Saves the app's active scenario to SAVES_DIR as a JSON file
+             named after the experiment_id and reports status.
+"""
 def _handle_save(app: MenuApp) -> None:
     if app.active_config is None:
         app.set_status("Nothing to save. Load a scenario first (Ctrl+O).", "err")
@@ -70,6 +94,12 @@ def _handle_save(app: MenuApp) -> None:
         app.set_status(f"Save error: {exc}", "err")
 
 
+"""
+Entrada: None
+Salida: None
+Descripción: Entry point that prepares output directories, builds the MenuApp,
+             registers the action handler, and runs the curses UI.
+"""
 def main() -> None:
     print("Starting SH-DATASET Orchestrator...")
     Path(SAVES_DIR).mkdir(parents=True, exist_ok=True)

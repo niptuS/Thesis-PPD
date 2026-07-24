@@ -14,6 +14,11 @@ from modules.attacks.base import check_tool_local, check_tool_ssh
 
 
 class AttacksController:
+    """
+    Entrada: app
+    Salida: None
+    Descripción: init
+    """
     def __init__(self, app: "MenuApp") -> None:
         self._app = app
         self._cursor: int = 0
@@ -21,6 +26,11 @@ class AttacksController:
         self._scan_mode: str = "—"
         self._scanning: bool = False
 
+    """
+    Entrada: key
+    Salida: bool
+    Descripción: handle key
+    """
     def handle_key(self, key: int) -> bool:
         if key in (ord("v"), ord("V")):
             self._do_verify()
@@ -39,26 +49,35 @@ class AttacksController:
             return True
         return False
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: refresh
+    """
     def _refresh(self):
         updated = build_attacks_section(cursor=self._cursor, tool_status=self._tool_status, scan_mode=self._scan_mode)
         self._app.replace_section("attacks", updated)
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do verify
+    """
     def _do_verify(self):
         if self._scanning:
-            EVENT_LOG.warn("Verificación ya en curso")
+            EVENT_LOG.warn("Verification already in progress")
             return
 
         ctrl_atk = getattr(self._app, "_ctrl_attackers", None)
         if not ctrl_atk:
-            EVENT_LOG.error("Controlador de atacantes no disponible")
+            EVENT_LOG.error("Attackers controller not available")
             return
 
         profs = ctrl_atk.profiles_list
         if not profs:
-            EVENT_LOG.error("No hay atacantes (role=attacker en Devices)")
+            EVENT_LOG.error("No attackers (set role=attacker in Devices)")
             return
 
-        # smart select
         if len(profs) == 1:
             profile = profs[0]
         else:
@@ -66,48 +85,53 @@ class AttacksController:
             if not self._app._stdscr:
                 return
             labels = [f"{p.label} ({p.mode} - {p.device_ip})" for p in profs]
-            sel = choice_select_overlay(self._app._stdscr, "Verificar en máquina", labels, labels[0])
+            sel = choice_select_overlay(self._app._stdscr, "Verify on machine", labels, labels[0])
             if not sel:
                 return
             idx = labels.index(sel) if sel in labels else 0
             profile = profs[idx]
 
         self._scan_mode = f"Local ({profile.label})" if profile.is_local else f"SSH → {profile.device_ip}"
-        EVENT_LOG.info(f"Verificando herramientas ({self._scan_mode})…")
+        EVENT_LOG.info(f"Verifying tools ({self._scan_mode})…")
         self._scanning = True
         self._tool_status = {}
         self._refresh()
         threading.Thread(target=self._verify_worker, args=(profile, ctrl_atk), daemon=True).start()
 
+    """
+    Entrada: profile, ctrl_atk
+    Salida: None
+    Descripción: verify worker
+    """
     def _verify_worker(self, profile, ctrl_atk):
         tools = sorted(set(a.tool for a in ATTACK_LIBRARY))
         ssh_exec = None
 
         if profile.mode == "ssh":
             if not profile.has_credentials:
-                EVENT_LOG.error(f"{profile.label}: sin credenciales (configure en panel Attackers)")
+                EVENT_LOG.error(f"{profile.label}: no credentials (configure in Attackers panel)")
                 self._scanning = False
                 self._refresh()
                 return
 
             ssh_exec = ctrl_atk.get_executor(profile.device_ip)
             if not ssh_exec:
-                EVENT_LOG.error(f"No se pudo crear executor para {profile.label}")
+                EVENT_LOG.error(f"Cannot create executor for {profile.label}")
                 self._scanning = False
                 self._refresh()
                 return
 
             EVENT_LOG.info(f"SSH → {profile.ssh_user}@{profile.device_ip}:{profile.ssh_port}")
             EVENT_LOG.info(
-                f"  password={'sí' if profile.ssh_password else 'no'}, key={'sí' if profile.ssh_key else 'no'}")
+                f"  password={'yes' if profile.ssh_password else 'no'}, key={'yes' if profile.ssh_key else 'no'}")
             ok, detail = ssh_exec.test_connection()
             if not ok:
-                EVENT_LOG.error(f"SSH falló: {detail}")
+                EVENT_LOG.error(f"SSH failed: {detail}")
                 self._scanning = False
-                self._scan_mode += " (sin conexión)"
+                self._scan_mode += " (no connection)"
                 self._refresh()
                 return
-            EVENT_LOG.ok(f"SSH conectado → {profile.device_ip}")
+            EVENT_LOG.ok(f"SSH connected → {profile.device_ip}")
 
         for tool in tools:
             if profile.mode == "ssh" and ssh_exec:
@@ -119,6 +143,6 @@ class AttacksController:
             self._refresh()
 
         n_ok = sum(1 for v in self._tool_status.values() if v)
-        EVENT_LOG.ok(f"Verificación: {n_ok}/{len(tools)} disponibles ({self._scan_mode})")
+        EVENT_LOG.ok(f"Verification: {n_ok}/{len(tools)} available ({self._scan_mode})")
         self._scanning = False
         self._refresh()

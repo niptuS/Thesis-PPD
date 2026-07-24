@@ -1,0 +1,194 @@
+╔══════════════════════════════════════════════════════════════════╗
+║  SH-DATASET — Categorías y Subcategorías para Plugins          ║
+║  Basado en Cyber Kill Chain (Lockheed Martin) + MITRE ATT&CK   ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Al crear un plugin de ataque (.py), usar estos valores en los campos
+kill_chain y subcategory del AttackDef:
+
+    AttackDef(
+        ...
+        kill_chain="Reconnaissance",
+        subcategory="network_scanning",
+        mitre_ref="T1046",
+        ...
+    )
+
+════════════════════════════════════════════════════════════════════
+ 1. RECONNAISSANCE (Reconocimiento)
+════════════════════════════════════════════════════════════════════
+Recopilar información sobre la red y dispositivos objetivo.
+
+  Subcategoría                  Descripción                         MITRE
+  ─────────────────────────────────────────────────────────────────
+  network_scanning              Escaneo de puertos/servicios        T1046
+  vulnerability_scanning        Detección de vulnerabilidades       T1595.002
+  os_fingerprinting             Identificación de sistema operativo T1592.004
+  service_enumeration           Enumeración de servicios activos    T1046
+  dns_enumeration               Enumeración DNS                     T1590.002
+  snmp_enumeration              Enumeración SNMP (IoT común)        T1590.001
+  banner_grabbing               Captura de banners de servicios     T1592.002
+  wifi_scanning                 Escaneo de redes WiFi               T1595.001
+  bluetooth_scanning            Escaneo Bluetooth/BLE (IoT)         T1595.001
+  upnp_discovery                Descubrimiento UPnP/SSDP            T1046
+  mdns_discovery                Descubrimiento mDNS/Bonjour         T1046
+  mqtt_topic_enumeration        Enumeración de topics MQTT          T1046
+  coap_discovery                Descubrimiento de recursos CoAP     T1046
+  zigbee_scanning               Escaneo de dispositivos Zigbee      T1595.001
+
+════════════════════════════════════════════════════════════════════
+ 2. WEAPONIZATION (Armamento)
+════════════════════════════════════════════════════════════════════
+Preparación de herramientas y payloads para el ataque.
+
+  Subcategoría                  Descripción                         MITRE
+  ─────────────────────────────────────────────────────────────────
+  payload_crafting              Creación de paquetes maliciosos      T1587.001
+  exploit_development           Desarrollo de exploits               T1587.004
+  firmware_modification         Modificación de firmware IoT         T1587.001
+  malicious_script              Script malicioso para IoT            T1587.001
+
+════════════════════════════════════════════════════════════════════
+ 3. DELIVERY (Entrega)
+════════════════════════════════════════════════════════════════════
+Transmisión del payload al objetivo.
+
+  Subcategoría                  Descripción                         MITRE
+  ─────────────────────────────────────────────────────────────────
+  mqtt_injection                Inyección de mensajes MQTT           T1566
+  coap_injection                Inyección de mensajes CoAP           T1566
+  http_payload_delivery         Entrega de payload via HTTP          T1566.002
+  firmware_update_hijack        Secuestro de actualización firmware  T1195.002
+  zigbee_injection              Inyección de frames Zigbee           T1566
+
+════════════════════════════════════════════════════════════════════
+ 4. EXPLOITATION (Explotación)
+════════════════════════════════════════════════════════════════════
+Explotación de vulnerabilidades para ganar acceso.
+
+  Subcategoría                  Descripción                         MITRE
+  ─────────────────────────────────────────────────────────────────
+  default_credentials           Uso de credenciales por defecto      T1078.001
+  brute_force                   Fuerza bruta de contraseñas          T1110.001
+  credential_stuffing           Relleno de credenciales              T1110.004
+  buffer_overflow               Desbordamiento de buffer             T1203
+  command_injection             Inyección de comandos                T1059
+  path_traversal                Traversal de directorios             T1083
+  sql_injection                 Inyección SQL (IoT con DB)           T1190
+  web_exploit                   Explotación de interfaz web          T1190
+  telnet_exploit                Explotación de Telnet abierto        T1190
+  upnp_exploit                  Explotación de UPnP                  T1190
+  mqtt_auth_bypass              Bypass de autenticación MQTT         T1078
+
+════════════════════════════════════════════════════════════════════
+ 5. INSTALLATION (Instalación)
+════════════════════════════════════════════════════════════════════
+Instalación de acceso persistente en el dispositivo.
+
+  Subcategoría                  Descripción                         MITRE
+  ─────────────────────────────────────────────────────────────────
+  backdoor_installation         Instalación de backdoor              T1543
+  rootkit                       Instalación de rootkit               T1014
+  firmware_backdoor             Backdoor en firmware                 T1542.001
+  cron_persistence              Persistencia via cron/scheduler      T1053
+  ssh_key_injection             Inyección de clave SSH               T1098.004
+
+════════════════════════════════════════════════════════════════════
+ 6. COMMAND AND CONTROL (Comando y Control)
+════════════════════════════════════════════════════════════════════
+Establecimiento de canal de comunicación con el dispositivo comprometido.
+
+  Subcategoría                  Descripción                         MITRE
+  ─────────────────────────────────────────────────────────────────
+  man_in_the_middle             Interceptación de tráfico (MITM)     T1557.002
+  arp_spoofing                  Envenenamiento de caché ARP          T1557.002
+  dns_spoofing                  Suplantación de DNS                  T1557.002
+  ssl_stripping                 Remoción de cifrado SSL/TLS          T1557
+  reverse_shell                 Shell reversa desde IoT              T1059
+  c2_over_mqtt                  C2 usando protocolo MQTT             T1571
+  c2_over_coap                  C2 usando protocolo CoAP             T1571
+  c2_over_dns                   C2 usando túnel DNS                  T1071.004
+  proxy_pivot                   Uso de dispositivo como proxy        T1090
+
+════════════════════════════════════════════════════════════════════
+ 7. ACTIONS ON OBJECTIVES (Acciones sobre Objetivos)
+════════════════════════════════════════════════════════════════════
+Acciones finales del atacante sobre el dispositivo/red.
+
+  Subcategoría                  Descripción                         MITRE
+  ─────────────────────────────────────────────────────────────────
+  denial_of_service             Denegación de servicio (DoS)         T1498
+  syn_flood                     Inundación SYN                       T1498.001
+  udp_flood                     Inundación UDP                       T1498.001
+  icmp_flood                    Inundación ICMP                      T1498.001
+  http_flood                    Inundación HTTP                      T1499.002
+  mqtt_flood                    Inundación de mensajes MQTT          T1498
+  coap_flood                    Inundación de mensajes CoAP          T1498
+  slowloris                     DoS por conexiones lentas            T1499.001
+  amplification_attack          Ataque de amplificación              T1498.002
+  wireless_disruption           Interrupción de comunicación WiFi    T1498
+  wifi_deauthentication         Desautenticación WiFi 802.11         T1498
+  bluetooth_jamming             Interferencia Bluetooth              T1498
+  zigbee_jamming                Interferencia Zigbee                 T1498
+  data_exfiltration             Exfiltración de datos del IoT        T1041
+  camera_hijacking              Secuestro de cámara IP               T1125
+  sensor_manipulation           Manipulación de datos de sensores    T1565.002
+  actuator_manipulation         Manipulación de actuadores           T1565.002
+  device_lockout                Bloqueo del dispositivo              T1531
+  ransomware_iot                Ransomware en dispositivo IoT        T1486
+  data_destruction              Destrucción de datos/config          T1485
+  privacy_violation             Violación de privacidad (espionaje)  T1119
+  lateral_movement_iot          Movimiento lateral via IoT           T1021
+  botnet_recruitment            Reclutamiento para botnet (Mirai)    T1583.005
+
+════════════════════════════════════════════════════════════════════
+ EJEMPLO DE USO EN PLUGIN
+════════════════════════════════════════════════════════════════════
+
+  from modules.attacks.base import AttackDef
+
+  ATTACK_DEFS = [
+      AttackDef(
+          name="mqtt_topic_bruteforce",
+          description="Fuerza bruta de topics MQTT protegidos",
+          tool="python/paho-mqtt",
+          mitre_ref="T1110.001",
+          category="dos",
+          command="plugin",
+          requires_root=False,
+          recommended_dur_s=60,
+          continuous=True,
+          kill_chain="Exploitation",
+          subcategory="mqtt_auth_bypass",
+          local_fallback="mqtt_topic_bruteforce:run",
+      ),
+  ]
+
+  def run(target_ip, port=1883, duration=60, **kwargs):
+      import paho.mqtt.client as mqtt
+      # ... implementación ...
+      return {"success": True, "message": "..."}
+
+════════════════════════════════════════════════════════════════════
+ ATAQUES NATIVOS — CLASIFICACIÓN ACTUAL
+════════════════════════════════════════════════════════════════════
+
+  Ataque              kill_chain                  subcategory
+  ──────────────────────────────────────────────────────────────
+  port_scan           Reconnaissance              network_scanning
+  vuln_scan           Reconnaissance              network_scanning
+  os_detection        Reconnaissance              network_scanning
+  brute_ssh           Initial Access              brute_force
+  brute_http          Initial Access              brute_force
+  brute_telnet        Initial Access              brute_force
+  arp_spoof           Command and Control         man_in_the_middle
+  arp_spoof_ettercap  Command and Control         man_in_the_middle
+  syn_flood           Actions on Objectives       denial_of_service
+  udp_flood           Actions on Objectives       denial_of_service
+  icmp_flood          Actions on Objectives       denial_of_service
+  tcp_flood           Actions on Objectives       denial_of_service
+  dos_http            Actions on Objectives       denial_of_service
+  mqtt_flood          Actions on Objectives       denial_of_service
+  ping_flood          Actions on Objectives       denial_of_service
+  coap_flood          Actions on Objectives       denial_of_service
+  deauth_wifi         Actions on Objectives       wireless_disruption

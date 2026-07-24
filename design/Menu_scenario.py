@@ -1,6 +1,11 @@
 from design.models import Section, FieldMeta
 
 
+"""
+Entrada: config (ScenarioConfig), **kwargs
+Salida: Section
+Descripción: Builds the scenario configuration section with editable fields.
+"""
 def build_scenario_section(config, **kwargs) -> Section:
     lines = [
         "─── Scenario Configuration ───────────────────────",
@@ -10,7 +15,7 @@ def build_scenario_section(config, **kwargs) -> Section:
         f"  Environment       : {config.environment}",
         f"  Start time        : {config.start_time}",
         f"  Planned duration  : {config.planned_duration}",
-        f"  PCAP max size    : {getattr(config, 'pcap_max_size_kb', 512000)} KB ({getattr(config, 'pcap_max_size_kb', 512000) // 1024} MB)",
+        f"  Chunk max size    : {getattr(config, 'pcap_max_size_kb', 512000)} KB ({getattr(config, 'pcap_max_size_kb', 512000) // 1024} MB)",
     ]
 
     field_map = [
@@ -18,13 +23,13 @@ def build_scenario_section(config, **kwargs) -> Section:
         FieldMeta("experiment_id", "Experiment ID", True, 3),
         FieldMeta("environment", "Environment", True, 4),
         FieldMeta("start_time", "Start time", True, 5),
-        FieldMeta("planned_duration", "Planned duration", True, 6),
-        FieldMeta("pcap_max_size_kb", "PCAP max size (KB)", True, 7),
+        FieldMeta("planned_duration", "Duration (HH:MM:SS / 7d / 2w)", True, 6),
+        FieldMeta("pcap_max_size_kb", "Chunk max size (KB)", True, 7),
     ]
 
     return Section(
         key="scenario", label="Scenario Editor",
-        hint="↑↓=campo · Enter=editar · Ctrl+S=guardar · Ctrl+O=cargar",
+        hint="↑↓=field · Enter=edit · Ctrl+S=save · Ctrl+O=load",
         content_lines=lines, actions=[], field_map=field_map,
     )
 

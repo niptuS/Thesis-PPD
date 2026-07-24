@@ -12,6 +12,11 @@ from modules.artifacts.pcap_viewer import list_capture_files, read_pcap, read_cs
 
 
 class ArtifactsController:
+    """
+    Entrada: app
+    Salida: None
+    Descripción: init
+    """
     def __init__(self, app: "MenuApp") -> None:
         self._app = app
         self._files: list[dict] = []
@@ -28,6 +33,11 @@ class ArtifactsController:
         self._error = ""
         self._loaded = False
 
+    """
+    Entrada: key
+    Salida: bool
+    Descripción: handle key
+    """
     def handle_key(self, key: int) -> bool:
         if not self._loaded:
             self._load_files()
@@ -35,6 +45,11 @@ class ArtifactsController:
             return self._handle_files(key)
         return self._handle_view(key)
 
+    """
+    Entrada: key
+    Salida: None
+    Descripción: handle files
+    """
     def _handle_files(self, key):
         if key in (ord("r"), ord("R")):
             self._load_files()
@@ -50,8 +65,13 @@ class ArtifactsController:
         if key in (curses.KEY_ENTER, 10, 13):
             self._open_file()
             return True
-        return False  # let sidebar handle LEFT/ESC
+        return False
 
+    """
+    Entrada: key
+    Salida: None
+    Descripción: handle view
+    """
     def _handle_view(self, key):
         if key in (27, curses.KEY_LEFT):
             self._view_mode = "files"
@@ -99,13 +119,17 @@ class ArtifactsController:
             return True
         return True
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: load files
+    """
     def _load_files(self):
         import os
         self._files = []
         for d in ["data", "data/pcap", "data/metadata", "outputs", "outputs/pcap", "outputs/metadata"]:
             if os.path.isdir(d):
                 self._files.extend(list_capture_files(d))
-        # dedupe by normalized absolute path
         seen = set()
         unique = []
         for f in self._files:
@@ -116,9 +140,14 @@ class ArtifactsController:
         self._files = unique
         self._file_cursor = 0
         self._loaded = True
-        EVENT_LOG.info(f"Artifacts: {len(self._files)} archivos")
+        EVENT_LOG.info(f"Artifacts: {len(self._files)} files")
         self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: open file
+    """
     def _open_file(self):
         if not self._files or self._file_cursor >= len(self._files):
             return
@@ -126,25 +155,30 @@ class ArtifactsController:
         self._current_file = f["name"]
         self._error = ""
         if f["type"] in ("pcap", "pcapng"):
-            EVENT_LOG.info(f"Abriendo PCAP: {f['name']}…")
+            EVENT_LOG.info(f"Opening PCAP: {f['name']}…")
             self._packets, self._error = read_pcap(f["path"])
             self._packet_cursor = 0
             self._packet_page = 0
             self._view_mode = "packets"
             if not self._error:
-                EVENT_LOG.ok(f"{len(self._packets)} paquetes")
+                EVENT_LOG.ok(f"{len(self._packets)} packets")
         elif f["type"] == "csv":
-            EVENT_LOG.info(f"Abriendo CSV: {f['name']}…")
+            EVENT_LOG.info(f"Opening CSV: {f['name']}…")
             self._csv_headers, self._csv_rows, self._error = read_csv_file(f["path"])
             self._csv_cursor = 0
             self._csv_page = 0
             self._view_mode = "csv"
             if not self._error:
-                EVENT_LOG.ok(f"{len(self._csv_rows)} filas")
+                EVENT_LOG.ok(f"{len(self._csv_rows)} rows")
         if self._error:
             EVENT_LOG.error(self._error)
         self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: refresh
+    """
     def _refresh(self):
         updated = build_artifacts_section(
             files=self._files, file_cursor=self._file_cursor, view_mode=self._view_mode,

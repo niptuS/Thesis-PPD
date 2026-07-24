@@ -1,33 +1,33 @@
 @echo off
 REM ═══════════════════════════════════════════════════════════════
-REM SH-DATASET — Ejecucion Docker (portabilidad/reproducibilidad)
-REM Requiere: Docker Desktop
+REM SH-DATASET — Docker execution (portability/reproducibility)
+REM Requires: Docker Desktop
 REM ═══════════════════════════════════════════════════════════════
 echo.
 echo  SH-DATASET Docker
 echo  ==================
 echo.
-echo  NOTA: En Docker Desktop (Windows/Mac) las interfaces de red
-echo        mostradas son de la VM interna, no del PC fisico.
-echo        Para captura en Wi-Fi/Ethernet, usar: run.bat
+echo  NOTE: On Docker Desktop (Windows/Mac) the network interfaces
+echo        shown belong to the internal VM, not the physical PC.
+echo        For Wi-Fi/Ethernet capture, use: run.bat
 echo.
 
 REM Check Docker
 docker --version >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Docker no encontrado. Instalar Docker Desktop.
+    echo [ERROR] Docker not found. Install Docker Desktop.
     pause
     exit /b 1
 )
 
-echo Construyendo imagen...
+echo Building image...
 docker compose build --quiet 2>nul || docker-compose build --quiet 2>nul
 if errorlevel 1 (
-    echo [ERROR] Fallo al construir. Verificar Dockerfile y Docker Desktop.
+    echo [ERROR] Build failed. Check Dockerfile and Docker Desktop.
     pause
     exit /b 1
 )
 
-echo Iniciando contenedor interactivo...
+echo Starting interactive container...
 echo.
 docker compose run --rm sh-dataset 2>nul || docker-compose run --rm sh-dataset 2>nul

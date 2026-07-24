@@ -18,6 +18,11 @@ class MQTTResult:
 class MQTTClient:
     """MQTT publish/subscribe for IoT sensors."""
 
+    """
+    Entrada: broker (str), port (int), username (str), password (str)
+    Salida: None
+    Descripción: Initializes the MQTT client with broker connection parameters.
+    """
     def __init__(self, broker: str = "localhost", port: int = 1883,
                  username: str = "", password: str = "") -> None:
         self.broker = broker
@@ -26,6 +31,11 @@ class MQTTClient:
         self.password = password
         self._client = None
 
+    """
+    Entrada: None
+    Salida: bool
+    Descripción: Connects to the MQTT broker and starts the network loop.
+    """
     def connect(self) -> bool:
         try:
             import paho.mqtt.client as mqtt
@@ -43,6 +53,11 @@ class MQTTClient:
             logger.error("MQTT connection failed: %s", exc)
             return False
 
+    """
+    Entrada: topic (str), payload (str)
+    Salida: MQTTResult
+    Descripción: Publishes a payload to the given MQTT topic.
+    """
     def publish(self, topic: str, payload: str = "") -> MQTTResult:
         if self._client is None:
             return MQTTResult(success=False, error="not connected")
@@ -54,6 +69,11 @@ class MQTTClient:
         except Exception as exc:
             return MQTTResult(success=False, error=str(exc))
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Stops the network loop and disconnects from the broker.
+    """
     def close(self) -> None:
         if self._client:
             self._client.loop_stop()

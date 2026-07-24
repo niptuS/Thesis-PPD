@@ -1,147 +1,181 @@
 # SH-DATASET
 
-Software de creación de datasets para evaluar sistemas de detección de intrusos en redes Smart Home IoT.
+Software for creating datasets to evaluate intrusion detection systems in Smart Home IoT networks.
 
-Orquestador TUI (Terminal User Interface) que coordina tráfico benigno y ataques reales sobre dispositivos IoT en una red local, capturando el tráfico resultante en formato PCAP y generando datasets CSV etiquetados listos para entrenar o evaluar un IDS.
+TUI (Terminal User Interface) orchestrator that coordinates benign traffic and real attacks on IoT devices in a local network, capturing the resulting traffic in PCAP format and generating labeled CSV datasets ready to train or evaluate an IDS.
 
-Desarrollado como trabajo de tesis para la Universidad de Santiago de Chile (USACH).
+Developed as a thesis project for the Universidad de Santiago de Chile (USACH).
 
-## Descripción
+## Description
 
-SH-DATASET permite diseñar escenarios experimentales donde se combinan acciones benignas (peticiones HTTP/MQTT a dispositivos IoT reales) con ataques de red (ejecutados desde Kali Linux y scripts de Python), capturando simultáneamente todo el tráfico de la red. El resultado es un dataset con flujos de red etiquetados como `attack`, `benign` o `unknown`, útil para entrenar y evaluar modelos de detección de intrusos.
+SH-DATASET lets you design experimental scenarios that combine benign actions (HTTP/MQTT requests to real IoT devices) with network attacks (executed from Kali Linux and Python scripts), simultaneously capturing all network traffic. The result is a dataset with network flows labeled as `attack`, `benign` or `unknown`, useful for training and evaluating intrusion detection models.
 
-### Flujo de trabajo
-
-```
-1. Escanear red    → descubrir dispositivos IoT en la LAN
-2. Clasificar      → asignar roles (target, attacker) y tipos (camera, bulb, sensor...)
-3. Crear perfiles  → escanear endpoints HTTP/MQTT disponibles en cada dispositivo
-4. Diseñar timeline → programar eventos benignos y ataques con offsets temporales
-5. Ejecutar        → captura PCAP + ejecución coordinada de eventos
-6. Exportar        → CSV con flujos etiquetados + metadata JSON + log de ejecución
-```
-
-## Arquitectura
+### Workflow
 
 ```
-App.py                          ← Punto de entrada
+1. Scan network    → discover IoT devices on the LAN
+2. Classify        → assign roles (target, attacker) and types (camera, bulb, sensor...)
+3. Create profiles → scan HTTP/MQTT endpoints available on each device
+4. Design timeline → schedule benign events and attacks with temporal offsets
+5. Execute         → PCAP capture + coordinated event execution
+6. Export          → CSV with labeled flows + metadata JSON + execution log
+```
+
+## Architecture
+
+```
+App.py                          ← Entry point
 design/
-  Menu.py                       ← TUI principal (curses)
-  Menu_*.py                     ← Secciones del menú (devices, timeline, attacks, etc.)
-  handlers/                     ← Controladores de cada sección
-  overlays.py                   ← Modales interactivos (selectores, inputs)
-  models.py                     ← Dataclasses de la UI
+  Menu.py                       ← Main TUI (curses)
+  Menu_*.py                     ← Menu sections (devices, timeline, attacks, etc.)
+  handlers/                     ← Section controllers
+  overlays.py                   ← Interactive modals (selectors, inputs)
+  models.py                     ← UI dataclasses
 modules/
-  devices/                      ← Escaneo de red (nmap, ARP, scapy)
-  attacks/                      ← Librería de 17 ataques + sistema de plugins
-  profiles/                     ← Perfiles benignos + escáner de endpoints (103+ HTTP + MQTT)
-  timeline/                     ← Gestor de eventos datetime-aware
-  communication/                ← Ejecutores SSH, HTTP, MQTT
-  live_executions/              ← Motor de ejecución en vivo con captura PCAP
-  artifacts/                    ← Visor de PCAPs y CSVs
-plugins/attacks/                ← Scripts de ataque personalizados (Python)
-tests/                          ← 82 pruebas unitarias
+  devices/                      ← Network scanning (nmap, ARP, scapy)
+  attacks/                      ← 17-attack library + plugin system
+  profiles/                     ← Benign profiles + endpoint scanner (103+ HTTP + MQTT)
+  timeline/                     ← datetime-aware event manager
+  comms/                        ← Unified communication layer (Local, HTTP, MQTT, SSH)
+  services/                     ← Extracted services (single responsibility):
+    capture_service.py          ←   CaptureService           — PCAP capture
+    event_executor.py           ←   EventExecutor            — fires benign & attack events
+    flow_extractor.py           ←   FlowExtractor            — PCAP → raw flow rows
+    flow_labeler.py             ←   FlowLabeler              — flow labeling (scientific decision)
+    artifact_manifest_writer.py ←   ArtifactManifestWriter   — metadata JSON + execution log
+  live_executions/              ← Thin orchestrator wiring the 5 services together
+  artifacts/                    ← PCAP/CSV viewer
+  scenario_editor/              ← Scenario config schema + loader + validator
+  i18n.py                       ← Translation module (en/es)
+plugins/attacks/                ← Custom Python attack scripts
+tests/                          ← Unit tests (155 tests)
 ```
 
-## Librería de Ataques
+## Attack Library
 
-17 ataques nativos usando herramientas reales de Kali Linux:
+17 native attacks using real Kali Linux tools:
 
-| Categoría | Ataque | Herramienta | Requiere root |
-|-----------|--------|-------------|:-------------:|
-| DoS | SYN Flood | hping3 | ✓ |
-| DoS | UDP Flood | hping3 | ✓ |
-| DoS | ICMP Flood | hping3 | ✓ |
-| DoS | TCP Flood | hping3 | ✓ |
-| DoS | HTTP Slowloris | slowloris | |
-| DoS | Ping Flood | nping | |
-| DoS | MQTT Flood | mosquitto_pub | |
-| DoS | CoAP Flood | coap-client | |
-| Recon | Port Scan | nmap | |
-| Recon | Vuln Scan | nmap | |
-| Recon | OS Detection | nmap | ✓ |
-| MITM | ARP Spoof | arpspoof | ✓ |
-| MITM | ARP Spoof | ettercap | ✓ |
-| Brute Force | SSH | hydra | |
-| Brute Force | HTTP | hydra | |
-| Brute Force | Telnet | hydra | |
-| WiFi | Deauth | aireplay-ng | ✓ |
+| Category    | Attack         | Tool          | Requires root |
+| ----------- | -------------- | ------------- | :-----------: |
+| DoS         | SYN Flood      | hping3        |       ✓       |
+| DoS         | UDP Flood      | hping3        |       ✓       |
+| DoS         | ICMP Flood     | hping3        |       ✓       |
+| DoS         | TCP Flood      | hping3        |       ✓       |
+| DoS         | HTTP Slowloris | slowloris     |               |
+| DoS         | Ping Flood     | nping         |               |
+| DoS         | MQTT Flood     | mosquitto_pub |               |
+| DoS         | CoAP Flood     | coap-client   |               |
+| Recon       | Port Scan      | nmap          |               |
+| Recon       | Vuln Scan      | nmap          |               |
+| Recon       | OS Detection   | nmap          |       ✓       |
+| MITM        | ARP Spoof      | arpspoof      |       ✓       |
+| MITM        | ARP Spoof      | ettercap      |       ✓       |
+| Brute Force | SSH            | hydra         |               |
+| Brute Force | HTTP           | hydra         |               |
+| Brute Force | Telnet         | hydra         |               |
+| WiFi        | Deauth         | aireplay-ng   |       ✓       |
 
 ### Plugins
 
-Scripts Python personalizados en `plugins/attacks/`. Se verifican automáticamente (dependencias via AST) y se ejecutan solo localmente.
+Custom Python scripts in `plugins/attacks/`. They are auto-detected (dependencies analyzed via AST) and run locally only.
 
-## Dispositivos IoT Soportados
+## Supported IoT Devices
 
-16 tipos con escaneo automático de endpoints HTTP y topics MQTT:
+16 types with automatic HTTP endpoint and MQTT topic scanning:
 
 camera, bulb, plug, sensor, speaker, thermostat, lock, doorbell, vacuum, tv, hub, irrigation, garage, alarm, blind, appliance.
 
-### Escaneo de Endpoints
+### Endpoint scanning
 
-- **HTTP**: 103+ endpoints de múltiples fabricantes (Hikvision, Dahua, Shelly, Tasmota, Philips Hue, Sonoff, Axis, Foscam, Reolink, TP-Link)
-- **MQTT**: Descubrimiento real de topics (subscribe `#`) + templates Tasmota/Zigbee2MQTT para los 16 tipos
+- **HTTP**: 103+ endpoints from multiple vendors (Hikvision, Dahua, Shelly, Tasmota, Philips Hue, Sonoff, Axis, Foscam, Reolink, TP-Link)
+- **MQTT**: Real topic discovery (subscribe `#`) + Tasmota/Zigbee2MQTT templates for all 16 types
 
-Resultados del escaneo:
-- `✓` (200) → acción disponible en el timeline
-- `🔒` (401/403) → requiere credenciales, re-escaneable con auth
-- `✗` (404/500) → no disponible
+Scan results:
 
-## Comunicación con Dispositivos
+- `✓` (200) → action available in the timeline
+- `🔒` (401/403) → requires credentials, re-scanable with auth
+- `✗` (404/500) → not available
 
-| Protocolo | Uso | Librería |
-|-----------|-----|----------|
-| HTTP | Peticiones REST a dispositivos con interfaz web | urllib (stdlib) |
-| MQTT | Publicación de comandos al broker MQTT | paho-mqtt |
-| SSH | Ejecución remota de ataques en máquinas Kali | paramiko |
+## Communication with devices
 
-## Salidas
+| Protocol | Use                                           | Library         |
+| -------- | --------------------------------------------- | --------------- |
+| HTTP     | REST requests to devices with a web interface | urllib (stdlib) |
+| MQTT     | Publish commands to the MQTT broker           | paho-mqtt       |
+| SSH      | Remote attack execution on Kali machines      | paramiko        |
 
-Cada ejecución genera 4 archivos en carpetas separadas:
+## Outputs
+
+Each execution produces 4 files in separate folders:
 
 ```
 outputs/
-  pcap/       ← Captura de tráfico (rotación configurable, default 500 MB)
-  flows/      ← CSV con flujos etiquetados (NFStream o tshark)
-  metadata/   ← JSON con configuración del experimento
-  logs/       ← Log de ejecución en texto plano
+  pcap/       ← Traffic capture (configurable rotation, default 500 MB)
+  flows/      ← CSV with labeled flows (NFStream or tshark)
+  metadata/   ← JSON with experiment configuration
+  logs/       ← Execution log in plain text
 ```
 
-### CSV de flujos
+### Flows CSV
 
-Campos principales: `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`, `bidirectional_packets`, `bidirectional_bytes`, `src_role`, `dst_role`, `flow_label`.
+Main fields: `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`, `bidirectional_packets`, `bidirectional_bytes`, `src_role`, `dst_role`, `flow_label`.
 
-- `flow_label = "attack"` → flujo originado por un atacante hacia un target
-- `flow_label = "benign"` → flujo entre dispositivos no-atacantes
-- `flow_label = "unknown"` → no clasificable
+- `flow_label = "attack"` → flow originated from an attacker to a target
+- `flow_label = "benign"` → flow between non-attacker devices
+- `flow_label = "unknown"` → not classifiable
 
-## Instalación
+## Installation
 
-### Requisitos
+### Requirements
 
 - Python 3.10+
-- Wireshark (Windows) o tcpdump (Linux) para captura de paquetes
-- Máquina Kali Linux accesible por SSH (para ataques remotos)
+- Wireshark (Windows) or tcpdump (Linux) for packet capture
+- A Kali Linux machine reachable via SSH (for remote attacks)
 
-### Dependencias Python
+### Python dependencies
+
+Dependencies are split into three files for clarity:
+
+| File                    | Contents                                 | Install command                        |
+| ----------------------- | ---------------------------------------- | -------------------------------------- |
+| `requirements/base.txt` | Runtime dependencies (end users)         | `pip install -r requirements/base.txt` |
+| `requirements/test.txt` | Runtime + test runner (CI, contributors) | `pip install -r requirements/test.txt` |
+| `requirements/dev.txt`  | Runtime + tests + linting (maintainers)  | `pip install -r requirements/dev.txt`  |
+
+All pins are exact (`==`) for reproducibility. The top-level `requirements.txt` simply includes `base.txt` for backwards compatibility with `pip install -r requirements.txt`.
+
+| Library        | Version | Use                                      |
+| -------------- | ------- | ---------------------------------------- |
+| nfstream       | 9.1.0   | Network flow extraction from PCAP        |
+| scapy          | 2.6.1   | ARP scanning + attack plugins            |
+| paramiko       | 3.5.1   | SSH connections to attacker machines     |
+| paho-mqtt      | 2.1.0   | MQTT communication with IoT devices      |
+| psutil         | 7.0.0   | Network interface detection              |
+| python-nmap    | 0.7.1   | Network device scanning                  |
+| zeroconf       | 0.146.1 | mDNS / Zeroconf discovery                |
+| slowloris      | 0.2.0   | HTTP DoS attack                          |
+| requests       | 2.32.4  | HTTP library (some executors)            |
+| windows-curses | 2.4.1   | curses support on Windows (Windows only) |
+| pytest         | 8.4.1   | Test runner (test extra)                 |
+| flake8         | 7.3.0   | PEP 8 compliance (dev extra)             |
+| pylint         | 3.3.7   | Code quality score (dev extra)           |
+
+### Package metadata
+
+The project is described by a standard `pyproject.toml` (PEP 517/518). You can install it as a package:
 
 ```bash
-pip install -r requirements.txt
+# Editable install, runtime only
+pip install -e .
+
+# Editable install with test dependencies
+pip install -e .[test]
+
+# Editable install with test + linting dependencies
+pip install -e .[dev]
 ```
 
-| Librería | Versión | Uso |
-|----------|---------|-----|
-| paramiko | 5.0.0 | Conexión SSH a máquinas atacantes |
-| paho-mqtt | ≥1.6 | Comunicación MQTT con dispositivos IoT |
-| nfstream | 6.6.0 | Extracción de flujos de red desde PCAP |
-| scapy | 2.7.0 | Escaneo ARP + plugins de ataque |
-| psutil | 7.2.2 | Detección de interfaces de red |
-| python-nmap | 0.7.1 | Escaneo de dispositivos en la red |
-| slowloris | ≥0.2 | Ataque HTTP DoS |
-| pylint | 4.0.5 | Análisis estático de código |
-| flake8 | 7.3.0 | Cumplimiento PEP 8 |
-
-### Ejecución nativa (recomendado para laboratorio)
+### Native execution (recommended for the lab)
 
 ```bash
 # Windows
@@ -150,13 +184,13 @@ run.bat
 # Linux/Mac
 ./run.sh
 
-# O directamente
+# Or directly
 python App.py
 ```
 
-Instala dependencias Python automáticamente y verifica Wireshark/tcpdump.
+The launcher scripts install Python dependencies automatically and check for Wireshark/tcpdump.
 
-### Docker (portabilidad y reproducibilidad)
+### Docker (portability and reproducibility)
 
 ```bash
 # Windows
@@ -166,63 +200,63 @@ run_docker.bat
 ./run_docker.sh
 ```
 
-Construye una imagen con todas las herramientas de Kali preinstaladas y ejecuta el software en modo interactivo.
+The Dockerfile uses a pinned `kalilinux/kali-rolling:2025.2` base image and pins APT package versions for reproducibility. The container includes all Kali attack tools (hping3, nmap, hydra, ettercap, etc.) pre-installed.
 
-El contenedor incluye todas las herramientas de ataque (hping3, nmap, hydra, ettercap, etc.) preinstaladas.
-
-> **Limitación en Windows/Mac**: Docker Desktop corre una VM Linux interna.
-> `--net=host` expone las interfaces de la VM, no las del PC (Wi-Fi, Ethernet).
-> Para captura de tráfico en interfaces físicas, ejecutar nativamente (`python App.py`).
-> Docker funciona correctamente para ataques SSH a Kali, procesamiento de PCAPs y análisis.
+> **Limitation on Windows/Mac**: Docker Desktop runs an internal Linux VM.
+> `--net=host` exposes the VM's interfaces, not the PC's (Wi-Fi, Ethernet).
+> For traffic capture on physical interfaces, run natively (`python App.py`).
+> Docker works correctly for SSH attacks to Kali, PCAP processing and analysis.
 >
-> En **Linux nativo**, `--net=host` sí expone las interfaces reales del host.
+> On **native Linux**, `--net=host` does expose the host's real interfaces.
 
-| Modo | Captura en Wi-Fi/Ethernet | Ataques SSH | Análisis PCAP |
-|------|:-------------------------:|:-----------:|:-------------:|
-| Nativo (python App.py) | ✓ | ✓ | ✓ |
-| Docker en Linux | ✓ | ✓ | ✓ |
-| Docker Desktop (Win/Mac) | ✗ (solo interfaces VM) | ✓ | ✓ |
+| Mode                     | Wi-Fi/Ethernet capture | SSH attacks | PCAP analysis |
+| ------------------------ | :--------------------: | :---------: | :-----------: |
+| Native (python App.py)   |           ✓            |      ✓      |       ✓       |
+| Docker on Linux          |           ✓            |      ✓      |       ✓       |
+| Docker Desktop (Win/Mac) | ✗ (VM interfaces only) |      ✓      |       ✓       |
 
-## Uso
+## Usage
 
-### Navegación TUI
+### TUI navigation
 
-| Tecla | Acción |
-|-------|--------|
-| ↑↓ | Navegar entre elementos |
-| ←→ | Cambiar sección del menú lateral |
-| Enter | Editar campo / abrir elemento |
-| Ctrl+S | Guardar escenario |
-| Ctrl+O | Cargar escenario |
-| Ctrl+R | Ejecutar escenario |
-| Esc | Volver / cancelar |
+| Key    | Action                          |
+| ------ | ------------------------------- |
+| ↑↓     | Navigate between elements       |
+| ←→     | Change section in the side menu |
+| Enter  | Edit field / open item          |
+| Ctrl+S | Save scenario                   |
+| Ctrl+O | Load scenario                   |
+| Ctrl+R | Run scenario                    |
+| Esc    | Back / cancel                   |
 
-### Flujo típico
+### Typical flow
 
-1. **Devices**: Presionar `S` para escanear la red. Asignar roles (target/attacker) con `R`.
-2. **Scenario**: Configurar nombre, ID, duración, interfaz de captura.
-3. **Benign Profiles**: Agregar perfil (`A`), seleccionar tipo de dispositivo → escaneo automático de endpoints.
-4. **Attackers**: Configurar credenciales SSH (`P`) para máquinas Kali remotas. Verificar conexión (`T`).
-5. **Attack Library**: Verificar herramientas disponibles (`V`).
-6. **Timeline**: Agregar eventos (`A`) — benignos o ataques — con offsets temporales.
-7. **Live**: Presionar `R` para ejecutar. La captura PCAP inicia, los eventos se disparan según el timeline.
-8. **Artifacts**: Explorar los archivos generados (PCAP, CSV).
+1. **Devices**: Press `S` to scan the network. Assign roles (target/attacker) with `R`.
+2. **Scenario**: Configure name, ID, duration, capture interface.
+3. **Benign Profiles**: Add a profile (`A`), select device type → automatic endpoint scan.
+4. **Attackers**: Configure SSH credentials (`P`) for remote Kali machines. Verify connection (`T`).
+5. **Attack Library**: Verify available tools (`V`).
+6. **Timeline**: Add events (`A`) — benign or attacks — with temporal offsets.
+7. **Live**: Press `R` to run. PCAP capture starts, events fire according to the timeline.
+8. **Artifacts**: Browse the generated files (PCAP, CSV).
 
-## Calidad de Software
+## Software quality
 
 ```bash
-# Ejecutar tests + flake8 + pylint
-python run_tests.py
+# Run tests + flake8 + pylint
+python tests.py
 ```
 
 ```
-unittest : 82/82 PASSED
-flake8   : 0 violaciones
+unittest : 155/155 PASSED
+flake8   : 0 violations
 pylint   : 10.00 / 10
 ```
 
-## Licencia
+The single entry point for local validation is `python tests.py`. It runs the unittest suite, flake8 (PEP 8 compliance) and pylint (code quality), and writes a combined report to `reports/`.
 
-Trabajo de tesis — Universidad de Santiago de Chile (USACH), 2025.
+## License
 
-Autor: Patricio Páez.
+MIT — see [LICENSE](LICENSE).
+
+Copyright (c) 2025 Patricio Páez, Universidad de Santiago de Chile (USACH).

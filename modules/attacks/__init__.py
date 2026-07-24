@@ -5,9 +5,10 @@ _PLUGIN_ATTACKS: list[AttackDef] | None = None
 _PLUGIN_STATUSES = []
 
 ATTACK_LIBRARY: list[AttackDef] = [
-    # ── DoS / Flooding ──────────────────────────────────────
     AttackDef(
         name="syn_flood",
+        kill_chain="Actions on Objectives",
+        subcategory="denial_of_service",
         continuous=True,
         recommended_dur_s=30,
         description="SYN flood",
@@ -18,6 +19,8 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="dos_http",
+        kill_chain="Actions on Objectives",
+        subcategory="denial_of_service",
         continuous=True,
         recommended_dur_s=60,
         description="HTTP Slowloris",
@@ -29,6 +32,8 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="udp_flood",
+        kill_chain="Actions on Objectives",
+        subcategory="denial_of_service",
         continuous=True,
         recommended_dur_s=30,
         description="UDP flood",
@@ -39,6 +44,8 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="icmp_flood",
+        kill_chain="Actions on Objectives",
+        subcategory="denial_of_service",
         continuous=True,
         recommended_dur_s=30,
         description="ICMP flood (ping of death)",
@@ -48,11 +55,12 @@ ATTACK_LIBRARY: list[AttackDef] = [
         command="hping3 --icmp --flood -V {target}",
     ),
 
-    # ── Reconnaissance ──────────────────────────────────────
     AttackDef(
         name="port_scan",
+        kill_chain="Reconnaissance",
+        subcategory="network_scanning",
         recommended_dur_s=120,
-        description="Escaneo de puertos TCP",
+        description="TCP port scan",
         mitre_ref="T1046",
         tool="nmap",
         category="recon",
@@ -61,8 +69,10 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="vuln_scan",
+        kill_chain="Reconnaissance",
+        subcategory="network_scanning",
         recommended_dur_s=300,
-        description="Escaneo de vulnerabilidades",
+        description="Vulnerability scan",
         mitre_ref="T1595",
         tool="nmap",
         category="recon",
@@ -70,17 +80,20 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="os_detection",
+        kill_chain="Reconnaissance",
+        subcategory="network_scanning",
         recommended_dur_s=60,
-        description="Detección de sistema operativo",
+        description="Operating system detection",
         mitre_ref="T1592",
         tool="nmap",
         category="recon",
         command="nmap -O -sV {target}",
     ),
 
-    # ── MITM ────────────────────────────────────────────────
     AttackDef(
         name="arp_spoof",
+        kill_chain="Command and Control",
+        subcategory="man_in_the_middle",
         continuous=True,
         recommended_dur_s=60,
         description="ARP spoofing",
@@ -91,20 +104,23 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="arp_spoof_ettercap",
+        kill_chain="Command and Control",
+        subcategory="man_in_the_middle",
         continuous=True,
         recommended_dur_s=60,
-        description="MITM con Ettercap",
+        description="MITM with Ettercap",
         mitre_ref="T1557.002",
         tool="ettercap",
         category="mitm",
         command="timeout {duration} ettercap -T -q -M arp:remote /{target}// /{gateway}//",
     ),
 
-    # ── Brute Force ─────────────────────────────────────────
     AttackDef(
         name="brute_ssh",
+        kill_chain="Initial Access",
+        subcategory="brute_force",
         recommended_dur_s=120,
-        description="Fuerza bruta SSH",
+        description="SSH brute force",
         mitre_ref="T1110.001",
         tool="hydra",
         category="brute_force",
@@ -113,8 +129,10 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="brute_http",
+        kill_chain="Initial Access",
+        subcategory="brute_force",
         recommended_dur_s=120,
-        description="Fuerza bruta HTTP login",
+        description="HTTP login brute force",
         mitre_ref="T1110.001",
         tool="hydra",
         category="brute_force",
@@ -123,8 +141,10 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="brute_telnet",
+        kill_chain="Initial Access",
+        subcategory="brute_force",
         recommended_dur_s=120,
-        description="Fuerza bruta Telnet",
+        description="Telnet brute force",
         mitre_ref="T1110.001",
         tool="hydra",
         category="brute_force",
@@ -132,9 +152,10 @@ ATTACK_LIBRARY: list[AttackDef] = [
         requires_root=False,
     ),
 
-    # ── IoT Specific ────────────────────────────────────────
     AttackDef(
         name="mqtt_flood",
+        kill_chain="Actions on Objectives",
+        subcategory="denial_of_service",
         continuous=True,
         recommended_dur_s=30,
         description="MQTT flood",
@@ -146,6 +167,8 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="tcp_flood",
+        kill_chain="Actions on Objectives",
+        subcategory="denial_of_service",
         continuous=True,
         recommended_dur_s=30,
         description="TCP flood",
@@ -156,6 +179,8 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="ping_flood",
+        kill_chain="Actions on Objectives",
+        subcategory="denial_of_service",
         continuous=True,
         recommended_dur_s=30,
         description="Ping flood",
@@ -166,6 +191,8 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="coap_flood",
+        kill_chain="Actions on Objectives",
+        subcategory="denial_of_service",
         continuous=True,
         recommended_dur_s=30,
         description="CoAP flood",
@@ -181,6 +208,8 @@ ATTACK_LIBRARY: list[AttackDef] = [
     ),
     AttackDef(
         name="deauth_wifi",
+        kill_chain="Actions on Objectives",
+        subcategory="wireless_disruption",
         continuous=True,
         recommended_dur_s=30,
         description="WiFi deauthentication",
@@ -192,35 +221,57 @@ ATTACK_LIBRARY: list[AttackDef] = [
 ]
 
 
-# ── Registry access ─────────────────────────────────────────────
 
 _ATTACK_MAP: dict[str, AttackDef] = {a.name: a for a in ATTACK_LIBRARY}
 
 
+"""
+Entrada: None
+Salida: list[str] — attack names
+Descripción: Returns the names of all attacks in the library.
+"""
 def get_attack_names() -> list[str]:
     return [a.name for a in ATTACK_LIBRARY]
 
 
+"""
+Entrada: name (str)
+Salida: AttackDef | None
+Descripción: Returns the attack definition for the given name, or None if not found.
+"""
 def get_attack_class(name: str) -> AttackDef | None:
     return _ATTACK_MAP.get(name)
 
 
+"""
+Entrada: category (str)
+Salida: list[AttackDef]
+Descripción: Returns all attacks matching the given category.
+"""
 def get_attacks_by_category(category: str) -> list[AttackDef]:
     return [a for a in ATTACK_LIBRARY if a.category == category]
 
 
+"""
+Entrada: None
+Salida: list[str] — sorted categories
+Descripción: Returns the sorted unique list of attack categories.
+"""
 def get_attack_categories() -> list[str]:
     return sorted(set(a.category for a in ATTACK_LIBRARY))
 
 
+"""
+Entrada: None
+Salida: list[dict]
+Descripción: For overlay display — includes native attacks + plugins.
+"""
 def get_attack_info_list() -> list[dict]:
-    """For overlay display — includes native attacks + plugins."""
     result = [
         {"name": a.name, "description": a.description,
          "mitre_ref": a.mitre_ref, "tool": a.tool, "category": a.category}
         for a in ATTACK_LIBRARY
     ]
-    # add plugin attacks
     plugins = get_plugin_attacks()
     if plugins:
         for p in plugins:
@@ -231,6 +282,11 @@ def get_attack_info_list() -> list[dict]:
             })
     return result
 
+"""
+Entrada: auto_install (bool), log_callback (callable | None)
+Salida: list[AttackDef] | None
+Descripción: Returns plugin-based attacks, loading them on first access.
+"""
 def get_plugin_attacks(auto_install: bool = True, log_callback=None):
     global _PLUGIN_ATTACKS, _PLUGIN_STATUSES
     if _PLUGIN_ATTACKS is None:
@@ -240,8 +296,18 @@ def get_plugin_attacks(auto_install: bool = True, log_callback=None):
         )
     return _PLUGIN_ATTACKS
 
+"""
+Entrada: None
+Salida: list
+Descripción: Returns the list of plugin load statuses.
+"""
 def get_plugin_statuses():
     return _PLUGIN_STATUSES
 
+"""
+Entrada: None
+Salida: list[AttackDef]
+Descripción: Returns native library attacks plus any plugin attacks.
+"""
 def get_all_attacks() -> list[AttackDef]:
     return ATTACK_LIBRARY + (get_plugin_attacks() or [])

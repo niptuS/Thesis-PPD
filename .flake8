@@ -12,6 +12,9 @@ per-file-ignores =
 ignore =
     W503,
     E203,
-    C901
+    C901,
+    E302,
+    E303,
+    E305
 statistics = True
 count = True

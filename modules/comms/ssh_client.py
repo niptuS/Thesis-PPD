@@ -22,6 +22,11 @@ class SSHResult:
 class SSHClient:
     """Manages SSH connections to a remote host (e.g., Kali Linux)."""
 
+    """
+    Entrada: host (str), port (int), username (str), password (str), key_path (str)
+    Salida: None
+    Descripción: Initializes the SSH client with connection parameters.
+    """
     def __init__(self, host: str, port: int = 22,
                  username: str = "kali", password: str = "",
                  key_path: str = "") -> None:
@@ -32,6 +37,11 @@ class SSHClient:
         self.key_path = key_path
         self._client = None
 
+    """
+    Entrada: None
+    Salida: bool
+    Descripción: Connects to the remote host via paramiko (or falls back to subprocess ssh).
+    """
     def connect(self) -> bool:
         try:
             import paramiko
@@ -47,15 +57,18 @@ class SSHClient:
             return True
         except ImportError:
             logger.warning("paramiko not installed, falling back to subprocess ssh")
-            return True  # will use subprocess
+            return True
         except Exception as exc:
             logger.error("SSH connection failed: %s", exc)
             self._client = None
             return False
 
+    """
+    Entrada: command (str), timeout (int)
+    Salida: SSHResult
+    Descripción: Execute a command on the remote host.
+    """
     def execute(self, command: str, timeout: int = 30) -> SSHResult:
-        """Execute a command on the remote host."""
-        # try paramiko first
         if self._client is not None:
             try:
                 _, stdout, stderr = self._client.exec_command(command, timeout=timeout)
@@ -69,7 +82,6 @@ class SSHClient:
             except Exception as exc:
                 return SSHResult(success=False, error=str(exc))
 
-        # fallback: subprocess ssh
         try:
             ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no",
                        "-o", "ConnectTimeout=10"]
@@ -88,11 +100,21 @@ class SSHClient:
         except Exception as exc:
             return SSHResult(success=False, error=str(exc))
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Closes the underlying paramiko SSH client, if open.
+    """
     def close(self) -> None:
         if self._client:
             self._client.close()
             self._client = None
 
+    """
+    Entrada: None
+    Salida: bool
+    Descripción: Returns True if the paramiko transport is active.
+    """
     def is_connected(self) -> bool:
         if self._client:
             try:

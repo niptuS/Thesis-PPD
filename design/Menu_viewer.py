@@ -1,13 +1,24 @@
-"""Capture Viewer — browse and inspect PCAP/CSV files."""
+"""
+Entrada: None
+Salida: Section
+Descripción: Capture Viewer — browse and inspect PCAP/CSV files.
+"""
 from __future__ import annotations
 from design.models import Section
+from modules.i18n import t
 
 PAGE_SIZE = 20
 
 
+"""
+Entrada: files, file_cursor, view_mode, packets, packet_cursor, packet_page,
+         csv_headers, csv_rows, csv_cursor, csv_page, current_file, error
+Salida: Section
+Descripción: Builds the viewer section with localized labels and hints.
+"""
 def build_viewer_section(
     files=None, file_cursor=0,
-    view_mode="files",  # "files" | "packets" | "csv"
+    view_mode="files",
     packets=None, packet_cursor=0, packet_page=0,
     csv_headers=None, csv_rows=None, csv_cursor=0, csv_page=0,
     current_file="",
@@ -19,10 +30,10 @@ def build_viewer_section(
         content.append("─── Capture Files ────────────────────────────────────")
         file_list = files or []
         if not file_list:
-            content.append("  (sin archivos — ejecute un escenario primero)")
-            content.append("  Buscando en: data/")
+            content.append(f"  {t('artifacts', 'no_files_run')}")
+            content.append(f"  {t('artifacts', 'looking_in')} data/")
         else:
-            content.append(f"  {'':2} {'Archivo':<35} {'Tipo':<6} {'Tamaño':<10}")
+            content.append(f"  {'':2} {t('artifacts', 'file'):<35} {t('artifacts', 'type'):<6} {t('artifacts', 'size'):<10}")
             content.append("  " + "─" * 55)
             for i, f in enumerate(file_list):
                 marker = "►" if i == file_cursor else " "
@@ -34,7 +45,7 @@ def build_viewer_section(
         if error:
             content.append(f"  Error: {error}")
         elif not pkt_list:
-            content.append("  (sin paquetes)")
+            content.append(f"  {t('artifacts', 'no_packets')}")
         else:
             content.append(
                 f"  {'':2} {'#':<6} {'Time':<9} {'Source':<16} {'Dest':<16} {'Proto':<7} {'Len':<6} {'Ports':<12} {'Flags':<10}")
@@ -54,7 +65,7 @@ def build_viewer_section(
                     f"{p.protocol:<7} {p.length:<6} {ports:<12} {flags}"
                 )
             if total_pages > 1:
-                content.append(f"  Pág {page+1}/{total_pages} ({start+1}-{end} de {total})")
+                content.append(f"  {t('artifacts', 'page')} {page+1}/{total_pages} ({start+1}-{end} of {total})")
 
     elif view_mode == "csv":
         content.append(f"─── {current_file} ─────────────────────────────")
@@ -63,9 +74,8 @@ def build_viewer_section(
         if error:
             content.append(f"  Error: {error}")
         elif not rows:
-            content.append("  (sin datos)")
+            content.append(f"  {t('artifacts', 'no_data')}")
         else:
-            # show key columns: src_ip, dst_ip, src_role, dst_role, flow_label + first few
             key_cols = ["src_ip", "dst_ip", "ip.src", "ip.dst", "src_role", "dst_role", "flow_label",
                         "_ws.col.Protocol", "frame.len", "tcp.flags.str"]
             col_indices = []
@@ -96,13 +106,13 @@ def build_viewer_section(
                     vals.append(v[:13])
                 content.append(f"  {marker} " + " ".join(f"{v:<14}" for v in vals))
             if total_pages > 1:
-                content.append(f"  Pág {page+1}/{total_pages} ({start+1}-{end} de {total})")
+                content.append(f"  {t('artifacts', 'page')} {page+1}/{total_pages} ({start+1}-{end} of {total})")
 
     content.append("")
     if view_mode == "files":
-        hint = "Enter=abrir · R=refrescar · ↑↓=navegar"
+        hint = t("artifacts", "hint_files")
     else:
-        hint = "Esc=volver · ↑↓=navegar · PgUp/PgDn=página"
+        hint = t("artifacts", "hint_detail")
 
     return Section(
         key="viewer", label="Capture Viewer",

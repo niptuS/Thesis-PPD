@@ -1,53 +1,51 @@
 """
 ╔══════════════════════════════════════════════════════════════╗
-║  SH-DATASET — Plugin de Ataque (Ejemplo/Template)          ║
+║  SH-DATASET — Attack Plugin (Example/Template)              ║
 ╚══════════════════════════════════════════════════════════════╝
 
-Este archivo es una plantilla para crear plugins de ataque personalizados.
-El sistema los detecta automáticamente al iniciar la aplicación.
+This file is a template for creating custom attack plugins.
+The system detects them automatically on application startup.
 
-REQUISITOS:
-  1. El archivo debe estar en:  plugins/attacks/<nombre>.py
-  2. Debe definir una lista ATTACK_DEFS con al menos un AttackDef
-  3. Debe definir una función run() que ejecuta el ataque
-  4. Se ejecuta SOLO LOCALMENTE (no via SSH)
+REQUIREMENTS:
+  1. The file must be located at:  plugins/attacks/<name>.py
+  2. It must define an ATTACK_DEFS list with at least one AttackDef
+  3. It must define a run() function that executes the attack
+  4. It runs LOCALLY ONLY (not via SSH)
 
-VERIFICACIÓN:
-  - El sistema analiza TODOS los imports (incluso dentro de funciones)
-    con AST para detectar dependencias faltantes
-  - Presionar 'V' en Attack Library para verificar
+VERIFICATION:
+  - The system analyzes ALL imports (even inside functions) with AST
+    to detect missing dependencies
+  - Press 'V' in Attack Library to verify
 
-CAMPOS DE AttackDef:
-  name           : str   — Identificador único del ataque
-  description    : str   — Descripción corta
-  tool           : str   — Herramienta/librería usada (ej: "python/scapy")
-  mitre_ref      : str   — Referencia MITRE ATT&CK (ej: "T1498.001")
-  category       : str   — Categoría (dos, recon, mitm, brute_force, etc)
-  command        : str   — Se ignora en plugins (usar "plugin")
-  requires_root  : bool  — True si necesita permisos de administrador
-  recommended_dur_s: int — Duración recomendada en segundos
-  continuous     : bool  — True si el ataque es continuo (necesita duración)
-  local_fallback : str   — Ruta al punto de entrada: "archivo:función"
+AttackDef FIELDS:
+  name           : str   — Unique attack identifier
+  description    : str   — Short description
+  tool           : str   — Tool/library used (e.g. "python/scapy")
+  mitre_ref      : str   — MITRE ATT&CK reference (e.g. "T1498.001")
+  category       : str   — Category (dos, recon, mitm, brute_force, etc)
+  command        : str   — Ignored for plugins (use "plugin")
+  requires_root  : bool  — True if administrator privileges are required
+  recommended_dur_s: int — Recommended duration in seconds
+  continuous     : bool  — True if the attack is continuous (needs duration)
+  local_fallback : str   — Entry point path: "file:function"
 
-FUNCIÓN run():
-  Parámetros recibidos:
-    target_ip  : str   — IP del dispositivo objetivo
-    port       : int   — Puerto destino (default 80)
-    duration   : int   — Duración en segundos (solo si continuous=True)
-    **kwargs          — Parámetros adicionales del escenario
+run() FUNCTION:
+  Received parameters:
+    target_ip  : str   — IP of the target device
+    port       : int   — Destination port (default 80)
+    duration   : int   — Duration in seconds (only if continuous=True)
+    **kwargs          — Additional scenario parameters
 
-  Debe retornar:
-    dict con al menos: {"success": bool, "message": str}
+  Must return:
+    dict with at least: {"success": bool, "message": str}
 """
 
-# ── Imports de módulos del proyecto (siempre disponibles) ────
 from modules.attacks.base import AttackDef
 
-# ── Definición del ataque ────────────────────────────────────
 ATTACK_DEFS = [
     AttackDef(
         name="example_ping",
-        description="Ejemplo: ping continuo al target (template de plugin)",
+        description="Example: Continuous ping",
         tool="python/socket",
         mitre_ref="T1018",
         category="recon",
@@ -60,13 +58,12 @@ ATTACK_DEFS = [
 ]
 
 
-# ── Función de ejecución ─────────────────────────────────────
 def run(target_ip: str, port: int = 80, duration: int = 10, **kwargs) -> dict:
     """
-    Punto de entrada del plugin. Se ejecuta localmente.
-
-    Este ejemplo hace ping ICMP al target durante 'duration' segundos
-    usando solo librerías estándar de Python (sin dependencias externas).
+    Entrada: target_ip (str), port (int), duration (int), **kwargs
+    Salida: dict
+    Descripción: Example plugin entry point. Sends continuous pings to the
+                 target IP for the given duration and returns a summary.
     """
     import subprocess
     import platform
@@ -76,7 +73,6 @@ def run(target_ip: str, port: int = 80, duration: int = 10, **kwargs) -> dict:
     count = 0
     errors = 0
 
-    # Determinar comando de ping según OS
     flag = "-n" if platform.system() == "Windows" else "-c"
 
     while time.time() - start < duration:
@@ -95,13 +91,13 @@ def run(target_ip: str, port: int = 80, duration: int = 10, **kwargs) -> dict:
         except FileNotFoundError:
             return {
                 "success": False,
-                "message": "ping no disponible en el sistema",
+                "message": "ping not available on the system",
             }
 
     elapsed = time.time() - start
     return {
         "success": True,
-        "message": f"Ping: {count} ok, {errors} fallos en {elapsed:.1f}s",
+        "message": f"Ping: {count} ok, {errors} failures in {elapsed:.1f}s",
         "packets_sent": count + errors,
         "packets_ok": count,
         "duration": elapsed,

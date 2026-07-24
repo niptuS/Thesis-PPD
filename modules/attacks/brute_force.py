@@ -9,6 +9,11 @@ class BruteForceAttack(BaseAttack):
     description = "Credential brute force — attempts multiple login combinations"
     mitre_ref = "T1110"
 
+    """
+    Entrada: target_ip (str), duration_s (int), intensity (str), service (str), target_port (int), **kwargs
+    Salida: AttackResult
+    Descripción: Runs credential brute force attack using multiple worker threads.
+    """
     def run(self, target_ip: str, duration_s: int = 60, intensity: str = "medium",
             service: str = "ssh", target_port: int = 22, **kwargs) -> AttackResult:
         if not self.validate(target_ip):

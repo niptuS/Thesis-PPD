@@ -15,6 +15,14 @@ logger = logging.getLogger(__name__)
 
 class ArtifactManager:
 
+    """
+    Entrada: output_dir, experiment_id, run_id, environment,
+             scenario_name, scenario_start, planned_duration_s,
+             orchestrator_version, capture_interface
+    Salida: None
+    Descripción: Initializes the artifact manager, opening PCAP and
+                 metadata CSV writers.
+    """
     def __init__(
         self,
         output_dir: str | Path,
@@ -58,14 +66,32 @@ class ArtifactManager:
         self._metadata_path = metadata_path
         self._pcap_path = pcap_path
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Starts PCAP capture.
+    """
     def start_capture(self) -> None:
         self._pcap_writer.start()
         logger.info("capture started interface=%s", self._pcap_writer.interface)
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Stops PCAP capture.
+    """
     def stop_capture(self) -> None:
         self._pcap_writer.stop()
         logger.info("capture stopped pcap=%s", self._pcap_path)
 
+    """
+    Entrada: event_ts, event_kind, source_node, source_ip, source_mac,
+             target_node, target_ip, target_mac, protocol, action,
+             label, mitre_technique, mitre_subtechnique,
+             attack_intensity, benign_profile, duration_s, notes
+    Salida: MetadataRow
+    Descripción: Records an event row in the metadata CSV.
+    """
     def record_event(
         self,
         event_ts: datetime,
@@ -113,11 +139,21 @@ class ArtifactManager:
         self._csv_writer.append_row(row)
         return row
 
+    """
+    Entrada: None
+    Salida: Path
+    Descripción: Flushes pending metadata rows to disk.
+    """
     def flush_metadata(self) -> Path:
         path = self._csv_writer.flush()
         logger.info("metadata flushed path=%s rows=%d", path, self._csv_writer.row_count())
         return path
 
+    """
+    Entrada: None
+    Salida: dict[str, str]
+    Descripción: Stops capture, flushes metadata, and returns artifact paths and checksums.
+    """
     def finalize(self) -> dict[str, str]:
         self.stop_capture()
         meta_path = self.flush_metadata()
@@ -128,13 +164,28 @@ class ArtifactManager:
             "csv_sha256": compute_file_checksum(meta_path) if meta_path.exists() else "",
         }
 
+    """
+    Entrada: None
+    Salida: MetadataCsvReader
+    Descripción: Returns a CSV reader bound to the metadata file.
+    """
     def reader(self) -> MetadataCsvReader:
         return MetadataCsvReader(self._metadata_path)
 
+    """
+    Entrada: None
+    Salida: Path
+    Descripción: Returns the PCAP file path.
+    """
     @property
     def pcap_path(self) -> Path:
         return self._pcap_path
 
+    """
+    Entrada: None
+    Salida: Path
+    Descripción: Returns the metadata CSV file path.
+    """
     @property
     def metadata_path(self) -> Path:
         return self._metadata_path

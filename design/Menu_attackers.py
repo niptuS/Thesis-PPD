@@ -1,9 +1,19 @@
-"""Attackers panel — manage attacker devices and their SSH connections."""
+"""
+Entrada: None
+Salida: Section
+Descripción: Attackers panel — manage attacker devices and their SSH connections.
+"""
 from __future__ import annotations
 from design.models import Section
+from modules.i18n import t
 from modules.communication.attacker_profile import AttackerProfile
 
 
+"""
+Entrada: profiles (list|None), cursor (int), detail_cursor (int)
+Salida: Section
+Descripción: Builds the attackers section with localized labels and hints.
+"""
 def build_attackers_section(profiles: list[AttackerProfile] | None = None,
                             cursor: int = 0, detail_cursor: int = -1) -> Section:
     profs = profiles or []
@@ -11,7 +21,7 @@ def build_attackers_section(profiles: list[AttackerProfile] | None = None,
 
     content = ["─── Attacker Machines ─────────────────────────────────"]
     if not profs:
-        content.append("  (sin atacantes — agregue dispositivos con role=attacker en Devices)")
+        content.append(f"  {t('attackers', 'no_attackers_add')}")
     else:
         header = f"  {'':2} {'Tag':<18} {'Mode':<8} {'IP':<16} {'User':<10} {'Port':<6}"
         content.append(header)
@@ -32,7 +42,7 @@ def build_attackers_section(profiles: list[AttackerProfile] | None = None,
             ("ssh_user", "SSH user", selected.ssh_user),
             ("ssh_port", "SSH port", str(selected.ssh_port)),
             ("ssh_password", "SSH password", "●●●●●●●●" if selected.ssh_password else "(Enter)"),
-            ("ssh_key", "SSH key", selected.ssh_key or "(no configurada)"),
+            ("ssh_key", "SSH key", selected.ssh_key or t("attackers", "not_configured")),
         ]
         for i, (attr, label, val) in enumerate(fields):
             marker = "►" if i == detail_cursor else " "
@@ -47,7 +57,7 @@ def build_attackers_section(profiles: list[AttackerProfile] | None = None,
     ssh = n - local
     return Section(
         key="attackers", label="Attackers",
-        hint=f"E=editar · T=test · ↑↓=navegar · {n} atacantes ({local} local, {ssh} ssh)",
+        hint=t("attackers", "attackers_summary", n, local, ssh),
         content_lines=content, actions=[], field_map=[],
     )
 

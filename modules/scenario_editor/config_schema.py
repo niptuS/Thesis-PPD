@@ -16,12 +16,11 @@ class OutputConfig:
 @dataclass
 class AttackerConfig:
     """Attack execution config — local or via SSH to Kali Linux."""
-    mode: str = "local"   # "local" = this machine, "ssh" = remote Kali
-    ip: str = ""        # Kali IP (only needed for ssh mode)
+    mode: str = "local"
+    ip: str = ""
     ssh_user: str = "kali"
     ssh_port: int = 22
     ssh_key: str = ""
-    # password stored as runtime attribute only (not a dataclass field)
 
 
 @dataclass

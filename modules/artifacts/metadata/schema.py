@@ -66,6 +66,11 @@ class ExperimentHeader:
     pcap_file: str = ""
     orchestrator_version: str = "1.0.0"
 
+    """
+    Entrada: None
+    Salida: list[str]
+    Descripción: Returns the header fields as comment lines for the CSV file.
+    """
     def to_comment_block(self) -> list[str]:
         lines: list[str] = ["# SH-DATASET metadata export"]
         for f in fields(self):
@@ -98,9 +103,19 @@ class MetadataRow:
     notes: str = ""
     row_checksum: str = ""
 
+    """
+    Entrada: None
+    Salida: list[str]
+    Descripción: Returns the row fields as a list of CSV cell strings.
+    """
     def to_csv_row(self) -> list[str]:
         return [str(getattr(self, f.name)) for f in fields(self)]
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Computes and sets the row checksum from all fields except row_checksum.
+    """
     def compute_and_set_checksum(self) -> None:
         payload = CSV_DELIMITER.join(
             str(getattr(self, f.name))
@@ -110,6 +125,13 @@ class MetadataRow:
         self.row_checksum = hashlib.sha256(payload.encode(CSV_ENCODING)).hexdigest()[:16]
 
 
+"""
+Entrada: experiment_id, environment, scenario_name, start_time,
+         planned_duration_s, pcap_file, orchestrator_version
+Salida: ExperimentHeader
+Descripción: Builds an ExperimentHeader instance from the given
+             experiment metadata.
+"""
 def build_header(
     experiment_id: str,
     environment: str,
@@ -130,6 +152,16 @@ def build_header(
     )
 
 
+"""
+Entrada: row_id, experiment_id, run_id, event_ts, scenario_start,
+         event_kind, source_node, source_ip, source_mac,
+         target_node, target_ip, target_mac, protocol, action,
+         label, mitre_technique, mitre_subtechnique,
+         attack_intensity, benign_profile, duration_s, notes
+Salida: MetadataRow
+Descripción: Builds a MetadataRow from an event, computing relative
+             time and checksum.
+"""
 def build_row_from_event(
     row_id: int,
     experiment_id: str,

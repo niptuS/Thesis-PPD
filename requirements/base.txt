@@ -1,0 +1,34 @@
+# ─────────────────────────────────────────────────────────────────────
+# SH-DATASET — runtime dependencies (required to run the orchestrator)
+# Install with:  pip install -r requirements/base.txt
+# ─────────────────────────────────────────────────────────────────────
+
+# Network flow extraction from PCAP
+nfstream==9.1.0
+
+# Packet crafting (ARP scan + attack plugins)
+scapy==2.6.1
+
+# SSH client for remote attack execution on Kali Linux
+paramiko==3.5.1
+
+# MQTT client for IoT device communication
+paho-mqtt==2.1.0
+
+# Network interface enumeration (cross-platform)
+psutil==7.0.0
+
+# nmap wrapper for network scanning
+python-nmap==0.7.1
+
+# mDNS / Zeroconf discovery for IoT devices
+zeroconf==0.146.1
+
+# HTTP DoS attack (slowloris) — used as a runtime attack tool
+slowloris==0.2.0
+
+# HTTP library used by some executors
+requests==2.32.4
+
+# Windows-only: curses support for the TUI
+windows-curses==2.4.1; sys_platform == "win32"

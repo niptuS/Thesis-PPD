@@ -1,0 +1,12 @@
+# ─────────────────────────────────────────────────────────────────────
+# SH-DATASET — development dependencies (linting, type checking)
+# Install with:  pip install -r requirements/dev.txt
+# ─────────────────────────────────────────────────────────────────────
+
+-r base.txt
+
+# Static analysis — PEP 8 compliance
+flake8==7.3.0
+
+# Static analysis — code quality score
+pylint==3.3.7

@@ -17,6 +17,12 @@ class PcapCaptureError(RuntimeError):
 
 class PcapWriter:
 
+    """
+    Entrada: output_path, capture_interface, experiment_id,
+             run_id, snaplen, extra_filter
+    Salida: None
+    Descripción: Initializes the PCAP writer with capture parameters.
+    """
     def __init__(
         self,
         output_path: str | Path,
@@ -36,14 +42,29 @@ class PcapWriter:
         self._thread: threading.Thread | None = None
         self._running: bool = False
 
+    """
+    Entrada: None
+    Salida: str
+    Descripción: Returns the capture interface name.
+    """
     @property
     def interface(self) -> str:
         return self._interface
 
+    """
+    Entrada: None
+    Salida: Path
+    Descripción: Returns the PCAP output file path.
+    """
     @property
     def output_path(self) -> Path:
         return self._path
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Starts PCAP capture via tcpdump.
+    """
     def start(self) -> None:
         if self._running:
             logger.warning("capture already running run_id=%s", self._run_id)
@@ -85,6 +106,11 @@ class PcapWriter:
         except OSError as exc:
             raise PcapCaptureError(f"failed to start tcpdump: {exc}") from exc
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Stops the running tcpdump capture, if any.
+    """
     def stop(self) -> None:
         if not self._running:
             return
@@ -99,9 +125,19 @@ class PcapWriter:
             self._process = None
         logger.info("capture stopped run_id=%s path=%s", self._run_id, self._path)
 
+    """
+    Entrada: None
+    Salida: bool
+    Descripción: Returns whether capture is currently running.
+    """
     def is_running(self) -> bool:
         return self._running
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Background thread that logs tcpdump stderr lines.
+    """
     def _monitor_stderr(self) -> None:
         if self._process is None or self._process.stderr is None:
             return

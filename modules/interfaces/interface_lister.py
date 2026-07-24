@@ -31,6 +31,11 @@ class InterfaceInfo:
     addresses: list[str] = field(default_factory=list)
 
 
+"""
+Entrada: ip_str (str)
+Salida: bool
+Descripción: Returns True if the IP is a private RFC1918 address.
+"""
 def _is_private_ip(ip_str: str) -> bool:
     try:
         addr = ipaddress.IPv4Address(ip_str)
@@ -39,10 +44,20 @@ def _is_private_ip(ip_str: str) -> bool:
         return False
 
 
+"""
+Entrada: name (str)
+Salida: bool
+Descripción: Returns True if the interface name matches a known virtual prefix.
+"""
 def _is_virtual(name: str) -> bool:
     return any(name.lower().startswith(p) for p in VIRTUAL_PREFIXES)
 
 
+"""
+Entrada: addrs (list)
+Salida: str
+Descripción: Extracts the MAC address from the address list, or empty string.
+"""
 def _extract_mac(addrs: list) -> str:
     for addr in addrs:
         if addr.family.name in ("AF_PACKET", "AF_LINK"):
@@ -50,6 +65,11 @@ def _extract_mac(addrs: list) -> str:
     return ""
 
 
+"""
+Entrada: addrs (list)
+Salida: tuple[str, list[str]]
+Descripción: Extracts the primary IPv4 address and the list of all IPv4 addresses.
+"""
 def _extract_ipv4(addrs: list) -> tuple[str, list[str]]:
     primary = ""
     all_ips: list[str] = []
@@ -61,6 +81,11 @@ def _extract_ipv4(addrs: list) -> tuple[str, list[str]]:
     return primary, all_ips
 
 
+"""
+Entrada: include_virtual (bool)
+Salida: list[InterfaceInfo]
+Descripción: Lists network interfaces, optionally including virtual ones.
+"""
 def list_interfaces(include_virtual: bool = False) -> list[InterfaceInfo]:
     results: list[InterfaceInfo] = []
     stats = psutil.net_if_stats()

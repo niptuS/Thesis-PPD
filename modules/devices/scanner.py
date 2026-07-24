@@ -1,6 +1,8 @@
 """
-Network Scanner — SH-DATASET
-Escaneo mejorado para Windows/Linux con múltiples estrategias.
+Entrada: None
+Salida: Network scanner module
+Descripción: Network Scanner — SH-DATASET.
+             Enhanced scanning for Windows/Linux with multiple strategies.
 """
 import ipaddress
 import logging
@@ -31,6 +33,11 @@ _IS_WINDOWS = platform.system() == "Windows"
 SCAN_METHODS = ["nmap", "arp", "all"]
 
 
+"""
+Entrada: ip (str)
+Salida: str
+Descripción: Resolves the hostname for the given IP, or empty string on failure.
+"""
 def _resolve_hostname(ip: str) -> str:
     try:
         return socket.gethostbyaddr(ip)[0]
@@ -38,6 +45,11 @@ def _resolve_hostname(ip: str) -> str:
         return ""
 
 
+"""
+Entrada: mac (str)
+Salida: str
+Descripción: Returns the OUI vendor name for the given MAC address.
+"""
 def _oui_vendor(mac: str) -> str:
     if not mac or len(mac) < 8:
         return ""
@@ -45,6 +57,11 @@ def _oui_vendor(mac: str) -> str:
     return OUI_VENDOR_MAP.get(prefix, "")
 
 
+"""
+Entrada: dev (DeviceEntry)
+Salida: DeviceEntry
+Descripción: Applies fingerprinting to set device_type, role, and tags.
+"""
 def _apply_fingerprint(dev: DeviceEntry) -> DeviceEntry:
     port_numbers = [p.port for p in dev.open_ports]
     fp = fingerprint_device(ip=dev.ip, mac=dev.mac, vendor=dev.vendor, open_ports=port_numbers or None)
@@ -58,6 +75,11 @@ def _apply_fingerprint(dev: DeviceEntry) -> DeviceEntry:
     return dev
 
 
+"""
+Entrada: dev (DeviceEntry)
+Salida: DeviceEntry
+Descripción: Enriches the device with vendor and heuristic tags based on MAC.
+"""
 def _enrich_vendor_tags(dev: DeviceEntry) -> DeviceEntry:
     if not dev.vendor and dev.mac:
         dev.vendor = _oui_vendor(dev.mac)
@@ -68,16 +90,16 @@ def _enrich_vendor_tags(dev: DeviceEntry) -> DeviceEntry:
     return dev
 
 
-# ── nmap scan (primary, works on Windows + Linux) ──────────────
 
+"""
+Entrada: cidr (str), iface_name (str)
+Salida: list[DeviceEntry]
+Descripción: Host discovery with nmap. Uses multiple strategies:
+             1) -sn -PR (ARP ping — most reliable on LAN)
+             2) -sn (ICMP + TCP ping fallback)
+             On Windows, omits -e flag (interface selection works differently).
+"""
 def nmap_scan(cidr: str, iface_name: str = "") -> list[DeviceEntry]:
-    """
-    Host discovery with nmap. Uses multiple strategies:
-    1) -sn -PR (ARP ping — most reliable on LAN)
-    2) -sn (ICMP + TCP ping fallback)
-    On Windows, omits -e flag (interface selection works differently).
-    """
-    # Strategy 1: ARP ping (best for LAN, finds IoT devices that ignore ICMP)
     cmd = ["nmap", "-sn", "-PR", cidr]
     if not _IS_WINDOWS and iface_name:
         cmd.extend(["-e", iface_name])
@@ -86,7 +108,6 @@ def nmap_scan(cidr: str, iface_name: str = "") -> list[DeviceEntry]:
     devices = _run_nmap(cmd)
 
     if not devices:
-        # Strategy 2: regular ping scan as fallback
         cmd = ["nmap", "-sn", cidr]
         if not _IS_WINDOWS and iface_name:
             cmd.extend(["-e", iface_name])
@@ -97,6 +118,11 @@ def nmap_scan(cidr: str, iface_name: str = "") -> list[DeviceEntry]:
     return devices
 
 
+"""
+Entrada: cmd (list[str])
+Salida: list[DeviceEntry]
+Descripción: Runs an nmap command and parses its output into device entries.
+"""
 def _run_nmap(cmd: list[str]) -> list[DeviceEntry]:
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=_NMAP_TIMEOUT, check=False)
@@ -104,13 +130,18 @@ def _run_nmap(cmd: list[str]) -> list[DeviceEntry]:
             logger.warning("nmap stderr: %s", result.stderr[:200])
         return _parse_nmap_output(result.stdout)
     except FileNotFoundError:
-        logger.error("nmap no encontrado — instalar: https://nmap.org/download")
+        logger.error("nmap not found — install: https://nmap.org/download")
         return []
     except subprocess.TimeoutExpired:
         logger.error("nmap timeout (%ds)", _NMAP_TIMEOUT)
         return []
 
 
+"""
+Entrada: output (str)
+Salida: list[DeviceEntry]
+Descripción: Parses nmap text output into a list of device entries.
+"""
 def _parse_nmap_output(output: str) -> list[DeviceEntry]:
     devices = []
     current_ip = ""
@@ -118,10 +149,8 @@ def _parse_nmap_output(output: str) -> list[DeviceEntry]:
     current_ports: list[PortInfo] = []
 
     for line in output.splitlines():
-        # host report
         m = re.match(r"Nmap scan report for\s+(?:(\S+)\s+\()?(\d+\.\d+\.\d+\.\d+)", line)
         if m:
-            # flush previous host if no MAC line came (happens for local hosts)
             if current_ip:
                 dev = DeviceEntry(
                     ip=current_ip, hostname=current_host or _resolve_hostname(current_ip),
@@ -134,7 +163,6 @@ def _parse_nmap_output(output: str) -> list[DeviceEntry]:
             current_ports = []
             continue
 
-        # open port + service
         m_port = re.match(r"\s*(\d+)/(tcp|udp)\s+open\s+(\S+)\s*(.*)", line)
         if m_port:
             current_ports.append(PortInfo(
@@ -142,7 +170,6 @@ def _parse_nmap_output(output: str) -> list[DeviceEntry]:
                 banner=m_port.group(4).strip()))
             continue
 
-        # MAC line → device with MAC info
         m_mac = re.match(r"MAC Address:\s+([0-9A-Fa-f:]+)\s*(?:\((.+?)\))?", line)
         if m_mac and current_ip:
             mac = m_mac.group(1)
@@ -154,11 +181,10 @@ def _parse_nmap_output(output: str) -> list[DeviceEntry]:
             dev = _enrich_vendor_tags(dev)
             dev = _apply_fingerprint(dev)
             devices.append(dev)
-            current_ip = ""   # consumed
+            current_ip = ""
             current_host = ""
             current_ports = []
 
-    # flush last host (no MAC line)
     if current_ip:
         dev = DeviceEntry(
             ip=current_ip, hostname=current_host or _resolve_hostname(current_ip),
@@ -170,8 +196,12 @@ def _parse_nmap_output(output: str) -> list[DeviceEntry]:
     return devices
 
 
-# ── ARP scan (Scapy) ───────────────────────────────────────────
 
+"""
+Entrada: cidr (str), iface_name (str)
+Salida: list[DeviceEntry]
+Descripción: Performs a Scapy-based ARP scan over the given CIDR.
+"""
 def arp_scan(cidr: str, iface_name: str = "") -> list[DeviceEntry]:
     logger.info("ARP scan: cidr=%s iface=%s", cidr, iface_name)
     if not _HAS_SCAPY:
@@ -200,13 +230,14 @@ def arp_scan(cidr: str, iface_name: str = "") -> list[DeviceEntry]:
         return []
 
 
-# ── Windows ARP table fallback ──────────────────────────────────
 
+"""
+Entrada: None
+Salida: list[DeviceEntry]
+Descripción: Parse the OS ARP table (arp -a) as fallback when Scapy is unavailable.
+             Works on Windows without extra dependencies.
+"""
 def arp_table_scan() -> list[DeviceEntry]:
-    """
-    Parse the OS ARP table (arp -a) as fallback when Scapy is unavailable.
-    Works on Windows without extra dependencies.
-    """
     logger.info("ARP table scan (arp -a)")
     try:
         result = subprocess.run(["arp", "-a"], capture_output=True, text=True, timeout=10, check=False)
@@ -216,8 +247,6 @@ def arp_table_scan() -> list[DeviceEntry]:
 
     devices = []
     for line in result.stdout.splitlines():
-        # Windows: "  192.168.1.81          aa-bb-cc-dd-ee-ff     dynamic"
-        # Linux:   "192.168.1.81   ether   aa:bb:cc:dd:ee:ff   C   eth0"
         m = re.search(r"(\d+\.\d+\.\d+\.\d+)\s+([0-9a-fA-F][0-9a-fA-F:.-]{10,16})", line)
         if m:
             ip = m.group(1)
@@ -233,8 +262,12 @@ def arp_table_scan() -> list[DeviceEntry]:
     return devices
 
 
-# ── MAC-based merge ─────────────────────────────────────────────
 
+"""
+Entrada: existing (list[DeviceEntry]), new_devices (list[DeviceEntry])
+Salida: list[DeviceEntry]
+Descripción: Merges newly scanned devices into the existing list, matching by MAC or IP.
+"""
 def merge_by_mac(existing: list[DeviceEntry], new_devices: list[DeviceEntry]) -> list[DeviceEntry]:
     mac_map = {d.mac.lower(): d for d in existing if d.mac}
     ip_map = {d.ip: d for d in existing}
@@ -253,8 +286,12 @@ def merge_by_mac(existing: list[DeviceEntry], new_devices: list[DeviceEntry]) ->
     return result
 
 
+"""
+Entrada: nd_mac, nd_ip, mac_map, ip_map
+Salida: DeviceEntry | None
+Descripción: Find existing device by MAC (priority) or IP.
+"""
 def _find_match(nd_mac, nd_ip, mac_map, ip_map):
-    """Find existing device by MAC (priority) or IP."""
     if nd_mac and nd_mac in mac_map:
         return mac_map[nd_mac]
     if nd_ip in ip_map:
@@ -262,8 +299,12 @@ def _find_match(nd_mac, nd_ip, mac_map, ip_map):
     return None
 
 
+"""
+Entrada: matched, nd, nd_mac, mac_map, ip_map
+Salida: None
+Descripción: Update existing device with new scan data, preserving user edits.
+"""
 def _update_matched(matched, nd, nd_mac, mac_map, ip_map):
-    """Update existing device with new scan data, preserving user edits."""
     if nd_mac and matched.ip != nd.ip:
         logger.info("MAC match: %s IP %s → %s", nd_mac, matched.ip, nd.ip)
         old_ip = matched.ip
@@ -284,8 +325,12 @@ def _update_matched(matched, nd, nd_mac, mac_map, ip_map):
             matched.tags.append(tag)
 
 
+"""
+Entrada: nd, nd_mac, result, mac_map, ip_map
+Salida: None
+Descripción: Add a newly discovered device.
+"""
 def _add_new_device(nd, nd_mac, result, mac_map, ip_map):
-    """Add a newly discovered device."""
     nd.status = "online"
     result.append(nd)
     if nd_mac:
@@ -293,8 +338,12 @@ def _add_new_device(nd, nd_mac, result, mac_map, ip_map):
     ip_map[nd.ip] = nd
 
 
+"""
+Entrada: result, new_devices
+Salida: None
+Descripción: Mark devices not seen in this scan as offline.
+"""
 def _mark_offline(result, new_devices):
-    """Mark devices not seen in this scan as offline."""
     new_macs = {d.mac.lower() for d in new_devices if d.mac}
     new_ips = {d.ip for d in new_devices}
     for dev in result:
@@ -303,8 +352,12 @@ def _mark_offline(result, new_devices):
             dev.status = "offline"
 
 
-# ── unified scan ────────────────────────────────────────────────
 
+"""
+Entrada: iface_name (str), cidr (str), method (str)
+Salida: list[DeviceEntry]
+Descripción: Scans the network using the selected method (nmap, arp, or all).
+"""
 def scan_network(iface_name: str, cidr: str = "192.168.1.0/24", method: str = "nmap") -> list[DeviceEntry]:
     devices: list[DeviceEntry] = []
 
@@ -314,7 +367,6 @@ def scan_network(iface_name: str, cidr: str = "192.168.1.0/24", method: str = "n
     if method in ("arp", "all"):
         arp_devs = arp_scan(cidr, iface_name)
         if not arp_devs and _IS_WINDOWS:
-            # fallback to OS ARP table on Windows
             arp_devs = arp_table_scan()
         seen_ips = {d.ip for d in devices}
         for d in arp_devs:

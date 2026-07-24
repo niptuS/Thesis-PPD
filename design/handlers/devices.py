@@ -36,6 +36,11 @@ DETAIL_FIELDS = [
 
 
 class DevicesController:
+    """
+    Entrada: app
+    Salida: None
+    Descripción: init
+    """
     def __init__(self, app: "MenuApp") -> None:
         self._app = app
         self._registry = DeviceRegistry()
@@ -47,32 +52,67 @@ class DevicesController:
         self._detail_cursor: int = 0
         self._host_added: bool = False
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: devices
+    """
     @property
     def devices(self) -> list[DeviceEntry]:
         return self._registry.all()
 
+    """
+    Entrada: None
+    Salida: int
+    Descripción: device cursor
+    """
     @property
     def device_cursor(self) -> int:
         return self._device_cursor
 
+    """
+    Entrada: None
+    Salida: int
+    Descripción: page
+    """
     @property
     def page(self) -> int:
         return self._page
 
+    """
+    Entrada: None
+    Salida: int
+    Descripción: detail cursor
+    """
     @property
     def detail_cursor(self) -> int:
         return self._detail_cursor if self._zone == "detail" else -1
 
+    """
+    Entrada: None
+    Salida: DeviceRegistry
+    Descripción: registry
+    """
     @property
     def registry(self) -> DeviceRegistry:
         return self._registry
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: selected device
+    """
     def _selected_device(self) -> Optional[DeviceEntry]:
         devs = self.devices
         if devs and 0 <= self._device_cursor < len(devs):
             return devs[self._device_cursor]
         return None
 
+    """
+    Entrada: iface
+    Salida: None
+    Descripción: ensure host attacker
+    """
     def ensure_host_attacker(self, iface: str = "") -> None:
         if self._host_added:
             return
@@ -87,12 +127,16 @@ class DevicesController:
                               role="attacker", device_type="attacker",
                               status="online", tags=["host", "attacker"])
             self._registry.upsert(dev)
-        EVENT_LOG.info(f"Host registrado como atacante: {ip} ({hostname})")
+        EVENT_LOG.info(f"Host registered as attacker: {ip} ({hostname})")
         self._host_added = True
         self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Update host device IP to current value after loading saved config.
+    """
     def update_host_ip(self) -> None:
-        """Update host device IP to current value after loading saved config."""
         current_ip = get_host_ip()
         current_mac = get_host_mac()
         hostname = get_host_hostname()
@@ -109,13 +153,18 @@ class DevicesController:
                     dev.hostname = hostname
                     self._registry.upsert(dev)
                     EVENT_LOG.info(
-                        f"Host IP actualizada: {old_ip} → {current_ip}"
+                        f"Host IP updated: {old_ip} → {current_ip}"
                     )
                     self._refresh()
                 return
         self._host_added = False
         self.ensure_host_attacker()
 
+    """
+    Entrada: key
+    Salida: bool
+    Descripción: handle key
+    """
     def handle_key(self, key: int) -> bool:
         action_map = {
             ord("s"): self._do_scan, ord("S"): self._do_scan,
@@ -219,9 +268,19 @@ class DevicesController:
 
         return False
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: sync page
+    """
     def _sync_page(self):
         self._page = self._device_cursor // PAGE_SIZE
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: clamp cursor
+    """
     def _clamp_cursor(self):
         total = len(self.devices)
         if total == 0:
@@ -232,11 +291,21 @@ class DevicesController:
             self._device_cursor = min(self._device_cursor, total - 1)
             self._sync_page()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: refresh
+    """
     def _refresh(self):
         if self._zone in ("table", "detail"):
             self._app.field_cursor = 99
         self._app._refresh_devices_section()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: edit detail field
+    """
     def _edit_detail_field(self):
         device = self._selected_device()
         if device is None:
@@ -248,43 +317,48 @@ class DevicesController:
         attr, label, ftype = DETAIL_FIELDS[self._detail_cursor]
 
         if ftype == "readonly":
-            EVENT_LOG.warn(f"{label} es de solo lectura (asignado por fingerprinting)")
+            EVENT_LOG.warn(f"{label} is read-only (set by fingerprinting)")
             return
 
         if ftype == "select" and attr == "role":
             new = role_select_overlay(stdscr, device.role, DEVICE_ROLES)
             if new != device.role:
                 device.role = new
-                EVENT_LOG.info(f"Rol de {device.ip} → {new}")
+                EVENT_LOG.info(f"Role of {device.ip} → {new}")
 
         elif ftype == "text":
             current = getattr(device, attr, "")
             if isinstance(current, list):
                 current = " ".join(current)
-            new = text_input_overlay(stdscr, f"Editar {label}", str(current))
+            new = text_input_overlay(stdscr, f"Edit {label}", str(current))
             if new is not None and new != str(current):
                 if attr == "tags":
                     device.tags = [t.strip() for t in new.split() if t.strip()]
                 else:
                     setattr(device, attr, new)
-                EVENT_LOG.info(f"{label} de {device.ip} → {new}")
+                EVENT_LOG.info(f"{label} of {device.ip} → {new}")
 
         self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do add manual
+    """
     def _do_add_manual(self):
         if self._app._stdscr is None:
             return
         stdscr = self._app._stdscr
-        ip = text_input_overlay(stdscr, "IP del dispositivo")
+        ip = text_input_overlay(stdscr, "Device IP")
         if ip is None or not ip.strip():
             return
         ip = ip.strip()
         if ip in self._registry:
-            EVENT_LOG.warn(f"Dispositivo {ip} ya existe")
+            EVENT_LOG.warn(f"Device {ip} already exists")
             return
-        mac = text_input_overlay(stdscr, "MAC Address (opcional)", "") or ""
+        mac = text_input_overlay(stdscr, "MAC Address (optional)", "") or ""
         from design.Menu import choice_select_overlay
-        role = choice_select_overlay(stdscr, "Rol", DEVICE_ROLES, "target")
+        role = choice_select_overlay(stdscr, "Role", DEVICE_ROLES, "target")
         dev = DeviceEntry(ip=ip, mac=mac, role=role or "target", status="online")
         dev = _enrich_vendor_tags(dev)
         dev = _apply_fingerprint(dev)
@@ -292,37 +366,46 @@ class DevicesController:
         self._device_cursor = len(self.devices) - 1
         self._zone = "table"
         self._sync_page()
-        EVENT_LOG.ok(f"Dispositivo agregado manualmente: {ip} ({role})")
+        EVENT_LOG.ok(f"Device added manually: {ip} ({role})")
         self._refresh()
 
-    # ── scan ────────────────────────────────────────────────────
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do scan
+    """
     def _do_scan(self):
         if self._scan_thread is not None and self._scan_thread.is_alive():
-            EVENT_LOG.warn("Ya hay un escaneo en curso")
+            EVENT_LOG.warn("A scan is already in progress")
             return
         from design.Menu import CAPTURE_IFACE
         iface = CAPTURE_IFACE
         cidr = getattr(self._app.active_config, "scan_cidr", "192.168.1.0/24")
         method = getattr(self._app.active_config, "scan_method", "nmap")
         if not iface or not any(c.isalnum() for c in iface):
-            EVENT_LOG.error("Seleccione interfaz primero (Ctrl+N)")
+            EVENT_LOG.error("Select an interface first (Ctrl+N)")
             return
         self.ensure_host_attacker(iface)
-        EVENT_LOG.info(f"Escaneo iniciado — {method} {cidr} en {iface}")
+        EVENT_LOG.info(f"Scan started — {method} {cidr} on {iface}")
         self._scan_cancel.clear()
         self._scan_thread = threading.Thread(target=self._scan_worker, args=(method, cidr, iface), daemon=True)
         self._scan_thread.start()
 
+    """
+    Entrada: method, cidr, iface
+    Salida: None
+    Descripción: scan worker
+    """
     def _scan_worker(self, method, cidr, iface):
         start = time.time()
         try:
             new_devices = scan_network(iface_name=iface, cidr=cidr, method=method)
         except Exception as exc:
-            EVENT_LOG.error(f"Error en escaneo: {exc}")
+            EVENT_LOG.error(f"Scan error: {exc}")
             return
         if self._scan_cancel.is_set():
-            EVENT_LOG.warn("Escaneo abortado")
+            EVENT_LOG.warn("Scan aborted")
             return
         elapsed = round(time.time() - start, 1)
         merged = merge_by_mac(self._registry.all(), new_devices)
@@ -332,7 +415,7 @@ class DevicesController:
         self._app._last_scan_time = datetime.now().strftime("%H:%M:%S")
         for dev in new_devices:
             EVENT_LOG.info(f"  {dev.ip:<16} {get_type_label(dev.device_type)}  vendor={dev.vendor}")
-        EVENT_LOG.ok(f"Escaneo: {len(merged)} dispositivos ({elapsed}s)")
+        EVENT_LOG.ok(f"Scan: {len(merged)} devices ({elapsed}s)")
         if self._zone == "settings" and self.devices:
             self._zone = "table"
             self._app.field_cursor = 99
@@ -340,11 +423,21 @@ class DevicesController:
             self._page = 0
         self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do cancel scan
+    """
     def _do_cancel_scan(self):
         if self._scan_thread and self._scan_thread.is_alive():
             self._scan_cancel.set()
-            EVENT_LOG.warn("Cancelando escaneo…")
+            EVENT_LOG.warn("Canceling scan…")
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do remove
+    """
     def _do_remove(self):
         device = self._selected_device()
         if device is None:
@@ -354,16 +447,13 @@ class DevicesController:
             self._registry.remove(ip)
         except KeyError:
             pass
-        # cascade: remove from benign profiles
         ctrl_bp = getattr(self._app, "_ctrl_benign", None)
         if ctrl_bp:
             ctrl_bp._profiles = [p for p in ctrl_bp._profiles if p.device_ip != ip]
             ctrl_bp._clamp_cursor()
-        # cascade: remove from attackers
         ctrl_atk = getattr(self._app, "_ctrl_attackers", None)
         if ctrl_atk and ip in ctrl_atk._profiles:
             del ctrl_atk._profiles[ip]
-        # cascade: remove timeline events referencing this IP
         ctrl_tl = getattr(self._app, "_ctrl_timeline", None)
         if ctrl_tl:
             ctrl_tl._manager._events = [
@@ -371,12 +461,17 @@ class DevicesController:
                 if ip not in (e.source, e.target)
             ]
             ctrl_tl._clamp_cursor()
-        EVENT_LOG.info(f"Dispositivo removido (+ cascada): {ip}")
+        EVENT_LOG.info(f"Device removed (+ cascade): {ip}")
         if self._zone == "detail":
             self._zone = "table"
         self._clamp_cursor()
         self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do change method
+    """
     def _do_change_method(self):
         if self._app._stdscr is None:
             return
@@ -384,9 +479,14 @@ class DevicesController:
         selected = method_select_overlay(self._app._stdscr, current, SCAN_METHODS)
         if selected != current and self._app.active_config:
             self._app.active_config.scan_method = selected
-            EVENT_LOG.info(f"Método de escaneo: {selected}")
+            EVENT_LOG.info(f"Scan method: {selected}")
             self._refresh()
 
+    """
+    Entrada: None
+    Salida: None
+    Descripción: do set cidr
+    """
     def _do_set_cidr(self):
         self._zone = "settings"
         section = self._app._section()

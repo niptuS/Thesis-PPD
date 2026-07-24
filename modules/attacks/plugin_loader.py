@@ -1,3 +1,10 @@
+"""
+Entrada: None
+Salida: Plugin loader module
+Descripción: Scans the plugins/attacks directory, probes for missing
+             dependencies, optionally auto-installs them, and loads
+             each plugin's ATTACK_DEFS list.
+"""
 from __future__ import annotations
 import importlib.util
 import logging
@@ -15,19 +22,26 @@ PLUGINS_DIR = Path("plugins/attacks")
 
 @dataclass
 class PluginStatus:
-    name: str                        # nombre del archivo .py
+    """
+    Entrada: name (str), path (Path)
+    Salida: PluginStatus instance
+    Descripción: Dataclass holding the load status of a single plugin file.
+    """
+    name: str
     path: Path
     ok: bool = False
     attacks: list[AttackDef] = field(default_factory=list)
     missing_libs: list[str] = field(default_factory=list)
     error: str = ""
 
-# ── Detector de imports faltantes ───────────────────────────────
 
 def _probe_missing_imports(path: Path) -> list[str]:
     """
-    Ejecuta el script en un subproceso aislado y captura ImportError/ModuleNotFoundError.
-    Retorna lista de nombres de módulos faltantes.
+    Entrada: path (Path)
+    Salida: list[str]
+    Descripción: Runs the script in an isolated subprocess and captures
+                 ImportError/ModuleNotFoundError. Returns the list of missing
+                 module names.
     """
     probe_code = f"""
 import sys, traceback
@@ -40,7 +54,6 @@ try:
 except ModuleNotFoundError as e:
     print("MISSING:" + e.name)
 except ImportError as e:
-    # Intenta extraer el nombre del módulo del mensaje
     msg = str(e)
     name = msg.split("'")[1] if "'" in msg else msg.split()[-1]
     print("MISSING:" + name)
@@ -63,41 +76,51 @@ except Exception as e:
 
 
 def _install_lib(lib_name: str) -> bool:
-    """Instala una librería vía pip. Retorna True si tuvo éxito."""
-    logger.info("Falta librería '%s', iniciando instalación...", lib_name)
+    """
+    Entrada: lib_name (str)
+    Salida: bool
+    Descripción: Installs a library via pip. Returns True on success.
+    """
+    logger.info("Missing library '%s', starting installation...", lib_name)
     result = subprocess.run(
         [sys.executable, "-m", "pip", "install", lib_name,
          "--quiet", "--disable-pip-version-check"],
         capture_output=True, text=True
     )
     if result.returncode == 0:
-        logger.info("Librería '%s' instalada correctamente.", lib_name)
+        logger.info("Library '%s' installed successfully.", lib_name)
         return True
     else:
-        logger.error("Error instalando '%s': %s", lib_name, result.stderr.strip())
+        logger.error("Error installing '%s': %s", lib_name, result.stderr.strip())
         return False
 
 def load_plugins(
     auto_install: bool = True,
     log_callback=None,
-    probe_deps: bool = False,          # función(msg: str) para enviar al UI log
+    probe_deps: bool = False,
 ) -> tuple[list[AttackDef], list[PluginStatus]]:
     """
-    Escanea PLUGINS_DIR, verifica dependencias, instala si faltan,
-    y retorna (lista_de_attacks, lista_de_estados).
-
-    log_callback(msg) es llamado en cada evento importante para
-    que el menú curses lo muestre en tiempo real.
+    Entrada: auto_install (bool), log_callback (callable|None), probe_deps (bool)
+    Salida: tuple[list[AttackDef], list[PluginStatus]]
+    Descripción: Scans PLUGINS_DIR, verifies dependencies, installs if missing,
+                 and returns (list_of_attacks, list_of_statuses). log_callback(msg)
+                 is called on each important event so the curses menu can show it
+                 in real time.
     """
 
     def _log(msg: str):
+        """
+        Entrada: msg (str)
+        Salida: None
+        Descripción: Forwards a log message to both the logger and the optional callback.
+        """
         logger.info(msg)
         if log_callback:
             log_callback(msg)
 
     if not PLUGINS_DIR.exists():
         PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
-        _log(f"Directorio plugins creado: {PLUGINS_DIR}")
+        _log(f"Plugins directory created: {PLUGINS_DIR}")
         return [], []
 
     all_attacks: list[AttackDef] = []
@@ -108,28 +131,26 @@ def load_plugins(
             continue
 
         status = PluginStatus(name=py_file.stem, path=py_file)
-        _log(f"[PLUGIN] Verificando: {py_file.name}")
+        _log(f"[PLUGIN] Checking: {py_file.name}")
 
-        # ── 1. Detectar imports faltantes ──────────────────
         missing = _probe_missing_imports(py_file) if probe_deps else []
 
         if missing:
             status.missing_libs = missing
             for lib in missing:
-                _log(f"  ✗ Falta librería '{lib}', iniciando instalación...")
+                _log(f"  ✗ Missing library '{lib}', starting installation...")
                 if auto_install and _install_lib(lib):
-                    _log(f"  ✓ '{lib}' instalada.")
-                    # volver a probar después de instalar
+                    _log(f"  ✓ '{lib}' installed.")
                     missing = _probe_missing_imports(py_file) if probe_deps else []
                     status.missing_libs = missing
                     if not missing:
                         break
                 else:
-                    _log(f"  ✗ No se pudo instalar '{lib}'. Plugin deshabilitado.")
+                    _log(f"  ✗ Could not install '{lib}'. Plugin disabled.")
 
         if status.missing_libs:
             status.ok = False
-            status.error = "Dependencias faltantes: " + ", ".join(status.missing_libs)
+            status.error = "Missing dependencies: " + ", ".join(status.missing_libs)
             statuses.append(status)
             continue
 
@@ -139,9 +160,9 @@ def load_plugins(
             spec.loader.exec_module(mod)
 
             if not hasattr(mod, "ATTACK_DEFS"):
-                status.error = "No expone ATTACK_DEFS"
+                status.error = "Does not expose ATTACK_DEFS"
                 statuses.append(status)
-                _log(f"  ✗ {py_file.name}: no tiene ATTACK_DEFS")
+                _log(f"  ✗ {py_file.name}: no ATTACK_DEFS")
                 continue
 
             defs: list[AttackDef] = mod.ATTACK_DEFS
@@ -151,11 +172,11 @@ def load_plugins(
             status.attacks = defs
             status.ok = True
             all_attacks.extend(defs)
-            _log(f"  ✓ {py_file.name}: {len(defs)} ataque(s) cargado(s).")
+            _log(f"  ✓ {py_file.name}: {len(defs)} attack(s) loaded.")
 
         except Exception as exc:
             status.error = str(exc)
-            _log(f"  ✗ Error cargando {py_file.name}: {exc}")
+            _log(f"  ✗ Error loading {py_file.name}: {exc}")
 
         statuses.append(status)
 

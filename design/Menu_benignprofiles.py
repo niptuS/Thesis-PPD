@@ -1,23 +1,39 @@
-"""Benign Profiles — manage IoT device profiles with auto-scanned endpoints."""
+"""
+Entrada: None
+Salida: Section
+Descripción: Builds the Benign Profiles section showing IoT device profiles
+             with auto-scanned endpoints, plus detail view for selected profile.
+"""
 from __future__ import annotations
 from design.models import Section
+from modules.i18n import t
 
 PAGE_SIZE = 10
 
 
+"""
+Entrada: action (ActionDefinition)
+Salida: str
+Descripción: Returns the icon for an action (lock for auth-required, check otherwise).
+"""
 def _action_icon(action) -> str:
     if "_auth" in action.name:
         return "🔒"
     return "✓"
 
 
+"""
+Entrada: profiles (list|None), cursor (int), page (int), detail_cursor (int)
+Salida: Section
+Descripción: Builds the benign profiles section with localized labels and hints.
+"""
 def build_benign_profiles_section(profiles=None, cursor=0, page=0, detail_cursor=-1):
     profs = profiles if profiles is not None else []
     selected = profs[cursor] if profs and 0 <= cursor < len(profs) else None
 
     content = ["─── Benign Profiles ──────────────────────────────────", ""]
     if not profs:
-        content.append("  (sin perfiles — A para agregar)")
+        content.append(f"  {t('profiles', 'no_profiles_add')}")
     else:
         content.append(f"  {'':2} {'Tag':<16} {'Type':<10} {'IP':<16} {'Port':<6} {'Actions'}")
         content.append("  " + "─" * 55)
@@ -39,18 +55,18 @@ def build_benign_profiles_section(profiles=None, cursor=0, page=0, detail_cursor
         content.append(f"  IP: {selected.device_ip}  Port: {selected.port}  Auth: {selected.auth_user or '—'}")
         content.append("")
         if selected.actions:
-            content.append("  ── Acciones (solo las disponibles aparecen en Timeline) ──")
+            content.append(f"  ── {t('profiles', 'actions_available')} ──")
             for i, a in enumerate(selected.actions):
                 marker = "►" if i == detail_cursor else " "
                 icon = _action_icon(a)
                 content.append(f"  {marker} {icon} {a.name:<20} {a.method:<5} {a.endpoint}")
         else:
-            content.append("  (sin acciones — S para escanear endpoints)")
+            content.append(f"  {t('profiles', 'no_actions_scan')}")
 
     n = len(profs)
     return Section(
         key="benign_profiles", label="Benign Profiles",
-        hint=f"A=agregar · S=escanear endpoints · E=editar · R=remover · {n} perfiles",
+        hint=f"A=add · S=scan endpoints · E=edit · R=remove · {n} profiles",
         content_lines=content, actions=[], field_map=[],
     )
 

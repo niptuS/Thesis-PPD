@@ -34,7 +34,14 @@ disable =
     # ── Resource management (subprocess.Popen needs manual control) ──
     R1732,
     # ── Style suggestions ──
-    R1705, R1714, R0402, R1721
+    R1705, R1714, R0402, R1721,
+    # ── Entrada/Salida/Descripción docstrings placed outside functions ──
+    # (intentional style choice; pylint sees them as pointless string statements)
+    W0105,
+    # ── Validator has inherently nested validation logic ──
+    R1702,
+    # ── Superfluous parens (readability preference) ──
+    C0325
 
 [FORMAT]
 max-line-length = 120
