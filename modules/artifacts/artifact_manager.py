@@ -16,9 +16,12 @@ logger = logging.getLogger(__name__)
 class ArtifactManager:
 
     """
-    Entrada: output_dir (str | Path), experiment_id (str), run_id (str), environment (str), scenario_name (str), scenario_start (datetime), planned_duration_s (int), orchestrator_version (str), capture_interface (str)
+    Entrada: output_dir, experiment_id, run_id, environment,
+             scenario_name, scenario_start, planned_duration_s,
+             orchestrator_version, capture_interface
     Salida: None
-    Descripción: Initializes the artifact manager, opening PCAP and metadata CSV writers.
+    Descripción: Initializes the artifact manager, opening PCAP and
+                 metadata CSV writers.
     """
     def __init__(
         self,
@@ -82,7 +85,10 @@ class ArtifactManager:
         logger.info("capture stopped pcap=%s", self._pcap_path)
 
     """
-    Entrada: event_ts (datetime), event_kind (EventKind), source_node (str), source_ip (str), source_mac (str), target_node (str), target_ip (str), target_mac (str), protocol (str), action (str), label (str), mitre_technique (str), mitre_subtechnique (str), attack_intensity (str), benign_profile (str), duration_s (float), notes (str)
+    Entrada: event_ts, event_kind, source_node, source_ip, source_mac,
+             target_node, target_ip, target_mac, protocol, action,
+             label, mitre_technique, mitre_subtechnique,
+             attack_intensity, benign_profile, duration_s, notes
     Salida: MetadataRow
     Descripción: Records an event row in the metadata CSV.
     """

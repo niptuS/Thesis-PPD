@@ -8,4 +8,7 @@ from modules.scenario_editor.config_schema import (
     AttackModule,
     TimelineEvent,
 )
-from modules.scenario_editor.config_validator import validate_scenario
+from modules.scenario_editor.config_validator import (
+    validate_scenario,
+    validate_scenario_data,
+)

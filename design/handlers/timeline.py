@@ -251,7 +251,8 @@ class TimelineController:
             if attack_def is None:
                 for p in (get_plugin_attacks() or []):
                     if p.name == action:
-                        attack_def = p; break
+                        attack_def = p
+                        break
             if attack_def and attack_def.continuous:
                 rec = attack_def.recommended_dur_s
                 rec_hms = f"{rec // 3600:02d}:{(rec % 3600) // 60:02d}:{rec % 60:02d}"

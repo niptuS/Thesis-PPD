@@ -7,7 +7,6 @@ Descripción: Loads translations from design/language/*.json files and provides
 """
 from __future__ import annotations
 import json
-import os
 from pathlib import Path
 
 LANG_DIR = Path(__file__).parent.parent / "design" / "language"

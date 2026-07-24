@@ -18,7 +18,7 @@ if errorlevel 1 (
 
 REM Install dependencies
 echo Checking dependencies...
-pip install -r requirements.txt --quiet 2>nul
+pip install -r requirements/base.txt --quiet 2>nul
 if errorlevel 1 (
     echo [WARN] Some dependencies were not installed.
 )

@@ -18,7 +18,8 @@ class PcapCaptureError(RuntimeError):
 class PcapWriter:
 
     """
-    Entrada: output_path (str | Path), capture_interface (str), experiment_id (str), run_id (str), snaplen (int), extra_filter (str)
+    Entrada: output_path, capture_interface, experiment_id,
+             run_id, snaplen, extra_filter
     Salida: None
     Descripción: Initializes the PCAP writer with capture parameters.
     """

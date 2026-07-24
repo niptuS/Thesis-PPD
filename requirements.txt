@@ -1,12 +1,13 @@
-nfstream == 6.6.0
-scapy == 2.7.0
-pylint == 4.0.5
-requests == 2.33.1
-flake8 == 7.3.0
-python-nmap == 0.7.1
-psutil == 7.2.2
-zeroconf >= 0.149
-paramiko == 5.0.0
-paho-mqtt >= 1.6
-slowloris >= 0.2
-windows-curses; sys_platform == "win32"
+# SH-DATASET — requirements index
+#
+# Install only what you need:
+#   pip install -r requirements/base.txt    # runtime (end users)
+#   pip install -r requirements/test.txt   # runtime + tests (CI, contributors)
+#   pip install -r requirements/dev.txt    # runtime + tests + linting (maintainers)
+#
+# Or use the extras defined in pyproject.toml:
+#   pip install -e .[test]
+#   pip install -e .[dev]
+#
+
+-r base.txt

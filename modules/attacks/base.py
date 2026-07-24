@@ -24,9 +24,9 @@ class AttackDef:
     command: str
     requires_root: bool = True
     recommended_dur_s: int = 30
-    continuous:     bool = False
-    kill_chain:    str  = ""
-    subcategory:   str  = ""
+    continuous: bool = False
+    kill_chain: str = ""
+    subcategory: str = ""
     local_fallback: str = ""
 
     """

@@ -1,0 +1,122 @@
+# ─────────────────────────────────────────────────────────────────────
+# SH-DATASET — package metadata (PEP 517/518)
+# Build:  pip install -e .            (editable, runtime only)
+#         pip install -e .[test]      (editable, runtime + tests)
+#         pip install -e .[dev]       (editable, runtime + tests + linting)
+# ─────────────────────────────────────────────────────────────────────
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sh-dataset"
+version = "1.0.0"
+description = "Smart Home IoT network intrusion detection dataset orchestrator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Patricio Páez", email = "patricio.paez@usach.cl" },
+]
+keywords = [
+    "iot", "smart-home", "network-security", "intrusion-detection",
+    "dataset", "pcap", "nfstream", "kali-linux", "ids",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console :: Curses",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Networking :: Monitoring",
+]
+dependencies = [
+    "nfstream==9.1.0",
+    "scapy==2.6.1",
+    "paramiko==3.5.1",
+    "paho-mqtt==2.1.0",
+    "psutil==7.0.0",
+    "python-nmap==0.7.1",
+    "zeroconf==0.146.1",
+    "slowloris==0.2.0",
+    "requests==2.32.4",
+    'windows-curses==2.4.1; sys_platform == "win32"',
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest==8.4.1",
+]
+dev = [
+    "pytest==8.4.1",
+    "flake8==7.3.0",
+    "pylint==3.3.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/niptuS/Thesis-PPD"
+Repository = "https://github.com/niptuS/Thesis-PPD"
+Issues = "https://github.com/niptuS/Thesis-PPD/issues"
+
+[project.scripts]
+sh-dataset = "App:main"
+
+# ── Setuptools ─────────────────────────────────────────────────────────
+
+[tool.setuptools]
+py-modules = ["App", "tests"]
+packages = [
+    "modules",
+    "modules.attacks",
+    "modules.artifacts",
+    "modules.artifacts.pcap",
+    "modules.artifacts.metadata",
+    "modules.benign_profiles",
+    "modules.comms",
+    "modules.communication",  # backwards-compat shim
+    "modules.devices",
+    "modules.interfaces",
+    "modules.live_executions",
+    "modules.profiles",
+    "modules.scenario_editor",
+    "modules.services",
+    "modules.timeline",
+    "design",
+    "design.handlers",
+]
+
+[tool.setuptools.package-data]
+"design" = ["language/*.json"]
+
+# ── pytest ─────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v"
+
+# ── flake8 ─────────────────────────────────────────────────────────────
+
+[tool.flake8]
+max-line-length = 100
+exclude = [".git", "__pycache__", "build", "dist", ".venv"]
+extend-ignore = ["E203", "W503"]
+
+# ── pylint ─────────────────────────────────────────────────────────────
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+    "missing-module-docstring",
+    "too-few-public-methods",
+    "too-many-arguments",
+    "too-many-locals",
+    "broad-exception-caught",
+]

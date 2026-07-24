@@ -126,9 +126,11 @@ class MetadataRow:
 
 
 """
-Entrada: experiment_id (str), environment (str), scenario_name (str), start_time (datetime), planned_duration_s (int), pcap_file (str), orchestrator_version (str)
+Entrada: experiment_id, environment, scenario_name, start_time,
+         planned_duration_s, pcap_file, orchestrator_version
 Salida: ExperimentHeader
-Descripción: Builds an ExperimentHeader instance from the given experiment metadata.
+Descripción: Builds an ExperimentHeader instance from the given
+             experiment metadata.
 """
 def build_header(
     experiment_id: str,
@@ -151,9 +153,14 @@ def build_header(
 
 
 """
-Entrada: row_id (int), experiment_id (str), run_id (str), event_ts (datetime), scenario_start (datetime), event_kind (EventKind), source_node (str), source_ip (str), source_mac (str), target_node (str), target_ip (str), target_mac (str), protocol (str), action (str), label (str), mitre_technique (str), mitre_subtechnique (str), attack_intensity (str), benign_profile (str), duration_s (float), notes (str)
+Entrada: row_id, experiment_id, run_id, event_ts, scenario_start,
+         event_kind, source_node, source_ip, source_mac,
+         target_node, target_ip, target_mac, protocol, action,
+         label, mitre_technique, mitre_subtechnique,
+         attack_intensity, benign_profile, duration_s, notes
 Salida: MetadataRow
-Descripción: Builds a MetadataRow from an event, computing relative time and checksum.
+Descripción: Builds a MetadataRow from an event, computing relative
+             time and checksum.
 """
 def build_row_from_event(
     row_id: int,

@@ -6,7 +6,10 @@ from modules.scenario_editor.config_schema import (
     ScenarioConfig, OutputConfig, DeviceConfig,
     BenignProfile, AttackModule, TimelineEvent,
 )
-from modules.scenario_editor.config_validator import validate_scenario
+from modules.scenario_editor.config_validator import (
+    validate_scenario,
+    validate_scenario_data,
+)
 
 
 class ConfigLoadError(Exception):
@@ -99,6 +102,9 @@ def _parse_event(raw: dict) -> TimelineEvent:
 Entrada: path (str | Path)
 Salida: ScenarioConfig
 Descripción: Loads and validates a scenario JSON file into a ScenarioConfig.
+             Runs the comprehensive validator on the raw JSON first, so that
+             invalid values (e.g. scan_method="par", role="exploit") are
+             rejected even if they would parse to a string without error.
 """
 def load_scenario(path: str | Path) -> ScenarioConfig:
     scenario_path = Path(path)
@@ -111,6 +117,15 @@ def load_scenario(path: str | Path) -> ScenarioConfig:
         raw = json.loads(scenario_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise ConfigLoadError(f"Invalid JSON in {scenario_path}: {exc}") from exc
+
+    # Comprehensive validation on the raw JSON dict — catches invalid enum
+    # values, bad IPs, missing fields, cross-reference errors, etc.
+    errors = validate_scenario_data(raw)
+    if errors:
+        raise ConfigLoadError(
+            "Scenario validation failed:\n"
+            + "\n".join(f"  - {e}" for e in errors)
+        )
 
     try:
         config = ScenarioConfig(
@@ -128,6 +143,7 @@ def load_scenario(path: str | Path) -> ScenarioConfig:
     except KeyError as exc:
         raise ConfigLoadError(f"Missing required field: {exc}") from exc
 
+    # Also run the dataclass-level validator (backwards compatibility).
     errors = validate_scenario(config)
     if errors:
         raise ConfigLoadError("Validation failed:\n" + "\n".join(f"  - {e}" for e in errors))

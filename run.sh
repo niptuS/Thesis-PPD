@@ -17,8 +17,8 @@ if [ -z "$PYTHON" ]; then
 fi
 
 echo "Checking dependencies..."
-$PYTHON -m pip install -r requirements.txt --quiet 2>/dev/null || \
-    $PYTHON -m pip install -r requirements.txt --quiet --break-system-packages 2>/dev/null
+$PYTHON -m pip install -r requirements/base.txt --quiet 2>/dev/null || \
+    $PYTHON -m pip install -r requirements/base.txt --quiet --break-system-packages 2>/dev/null
 
 stty -ixon 2>/dev/null
 export TERM=xterm-256color
