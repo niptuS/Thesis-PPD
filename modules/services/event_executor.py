@@ -266,7 +266,9 @@ class EventExecutor:
                 break
 
         cmd = attack_def.build_command(
-            target_ip=target_ip, duration=duration_s or 30, port=80, gateway=gateway,
+            target_ip=target_ip,
+            duration=duration_s or attack_def.recommended_dur_s,
+            port=80, gateway=gateway,
         )
         needs_root = attack_def.requires_root
 
@@ -281,10 +283,18 @@ class EventExecutor:
             return
 
         if profile and mode == "ssh" and profile.has_credentials:
-            self._exec_attack_ssh(attack_name, cmd, target_ip,
-                                  source_ip=profile.device_ip, use_sudo=needs_root)
+            ssh_timeout = (duration_s or attack_def.recommended_dur_s) + 30
+            self._exec_attack_ssh(
+                attack_name, cmd, target_ip,
+                source_ip=profile.device_ip, use_sudo=needs_root,
+                timeout=ssh_timeout,
+            )
         else:
-            self._exec_attack_local(attack_name, cmd, target_ip, duration_s, needs_root)
+            self._exec_attack_local(
+                attack_name, cmd, target_ip,
+                duration_s or attack_def.recommended_dur_s,
+                needs_root,
+            )
 
     """
     Entrada: name (str), cmd (str), target_ip (str), source_ip (str), use_sudo (bool)
@@ -293,7 +303,8 @@ class EventExecutor:
                  to the matching channel in a background thread.
     """
     def _exec_attack_ssh(self, name: str, cmd: str, target_ip: str,
-                         source_ip: str = "", use_sudo: bool = False) -> None:
+                         source_ip: str = "", use_sudo: bool = False,
+                         timeout: int = 120) -> None:
         executor = None
         if self._get_executor and source_ip:
             executor = self._get_executor(source_ip)
@@ -312,7 +323,9 @@ class EventExecutor:
 
         def _run():
             try:
-                result = executor.execute(target_ip, cmd, timeout=120, use_sudo=use_sudo)
+                result = executor.execute(
+                    target_ip, cmd, timeout=timeout, use_sudo=use_sudo,
+                )
                 if result.success:
                     self._log(f"Kali OK: {name} → {target_ip} ({result.duration:.1f}s)", "OK")
                     if result.output:

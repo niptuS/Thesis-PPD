@@ -9,5 +9,5 @@
 #   pip install -e .[test]
 #   pip install -e .[dev]
 #
-
+# All pins are exact (==) for reproducibility. Bump explicitly when upgrading.
 -r base.txt

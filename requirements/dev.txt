@@ -2,6 +2,8 @@
 # SH-DATASET — development dependencies (linting, type checking)
 # Install with:  pip install -r requirements/dev.txt
 # ─────────────────────────────────────────────────────────────────────
+# Not needed at runtime; only for contributors who want to run the
+# quality checks (flake8, pylint) locally.
 
 -r base.txt
 
