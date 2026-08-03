@@ -170,7 +170,10 @@ class TestCommandDispatcher(unittest.TestCase):
         self.assertIn("unsupported protocol", result.error)
 
 
-class TestLegacyShim(unittest.TestCase):
+class TestLegacyAliases(unittest.TestCase):
+    """Verifies that the old class names (SSHExecutor, HTTPExecutor, etc.)
+    are aliases for the new channel classes. These are defined in
+    modules.comms.__init__ for backwards compatibility."""
 
     def test_legacy_ssh_executor_is_ssh_channel(self):
         self.assertIs(SSHExecutor, SSHChannel)
@@ -181,19 +184,11 @@ class TestLegacyShim(unittest.TestCase):
     def test_legacy_mqtt_executor_is_mqtt_channel(self):
         self.assertIs(MQTTExecutor, MQTTChannel)
 
-    def test_legacy_modules_communication_imports(self):
-        # The old import paths must still work
-        from modules.communication import (
-            SSHExecutor as LegacySSH, HTTPExecutor as LegacyHTTP,
-            MQTTExecutor as LegacyMQTT, AttackerProfile as LegacyAP,
-            ExecutionResult as LegacyER, BaseExecutor as LegacyBE,
-        )
-        self.assertIs(LegacySSH, SSHChannel)
-        self.assertIs(LegacyHTTP, HTTPChannel)
-        self.assertIs(LegacyMQTT, MQTTChannel)
-        self.assertIs(LegacyAP, AttackerProfile)
-        self.assertIs(LegacyER, ChannelResult)
-        self.assertIs(LegacyBE, BaseChannel)
+    def test_legacy_base_executor_is_base_channel(self):
+        self.assertIs(BaseExecutor, BaseChannel)
+
+    def test_legacy_execution_result_is_channel_result(self):
+        self.assertIs(ExecutionResult, ChannelResult)
 
 
 if __name__ == "__main__":

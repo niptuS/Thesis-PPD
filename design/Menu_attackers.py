@@ -6,7 +6,7 @@ Descripción: Attackers panel — manage attacker devices and their SSH connecti
 from __future__ import annotations
 from design.models import Section
 from modules.i18n import t
-from modules.communication.attacker_profile import AttackerProfile
+from modules.comms.attacker_profile import AttackerProfile
 
 
 """

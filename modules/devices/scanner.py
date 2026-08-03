@@ -125,7 +125,7 @@ Descripción: Runs an nmap command and parses its output into device entries.
 """
 def _run_nmap(cmd: list[str]) -> list[DeviceEntry]:
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=_NMAP_TIMEOUT, check=False)
+        result = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=_NMAP_TIMEOUT, check=False)
         if result.returncode != 0:
             logger.warning("nmap stderr: %s", result.stderr[:200])
         return _parse_nmap_output(result.stdout)
@@ -240,7 +240,7 @@ Descripción: Parse the OS ARP table (arp -a) as fallback when Scapy is unavaila
 def arp_table_scan() -> list[DeviceEntry]:
     logger.info("ARP table scan (arp -a)")
     try:
-        result = subprocess.run(["arp", "-a"], capture_output=True, text=True, timeout=10, check=False)
+        result = subprocess.run(["arp", "-a"], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10, check=False)
     except (OSError, subprocess.SubprocessError) as exc:
         logger.error("arp -a failed: %s", exc)
         return []

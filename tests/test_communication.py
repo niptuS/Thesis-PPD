@@ -1,9 +1,12 @@
-"""Tests for communication module (SSH, HTTP, MQTT executors)."""
+"""Tests for the communication layer (modules.comms).
+Tests the legacy class names (SSHExecutor, HTTPExecutor, etc.) which are
+now aliases for the new channel classes."""
 import unittest
 from unittest.mock import patch, MagicMock
-from modules.communication.executor_base import ExecutionResult
-from modules.communication.attacker_profile import AttackerProfile
-from modules.communication.http_executor import HTTPExecutor
+
+from modules.comms.base import ChannelResult as ExecutionResult
+from modules.comms.attacker_profile import AttackerProfile
+from modules.comms.http_channel import HTTPChannel as HTTPExecutor
 
 
 class TestExecutionResult(unittest.TestCase):
@@ -43,7 +46,7 @@ class TestAttackerProfile(unittest.TestCase):
         d = {"device_ip": "10.0.0.1", "mode": "ssh", "ssh_user": "root"}
         p = AttackerProfile.from_dict(d)
         self.assertEqual(p.ssh_user, "root")
-        self.assertEqual(p.ssh_password, "")  # not in dict
+        self.assertEqual(p.ssh_password, "")
 
     def test_label_fallback(self):
         p = AttackerProfile(device_ip="10.0.0.1")
@@ -65,7 +68,10 @@ class TestHTTPExecutor(unittest.TestCase):
         mock_urlopen.return_value = mock_resp
 
         ex = HTTPExecutor(timeout=5)
-        result = ex.execute("192.168.1.1", "test", port=80, method="GET", endpoint="/status")
+        result = ex.execute(
+            "192.168.1.1", "test", port=80,
+            method="GET", endpoint="/status",
+        )
         self.assertTrue(result.success)
 
     def test_send_action(self):
@@ -76,7 +82,6 @@ class TestHTTPExecutor(unittest.TestCase):
         action.payload = '{"state":"on"}'
         action.headers = {}
         ex = HTTPExecutor(timeout=1)
-        # will fail (no real device) but should not crash
         result = ex.send_action("192.168.1.99", action, port=80)
         self.assertFalse(result.success)
 

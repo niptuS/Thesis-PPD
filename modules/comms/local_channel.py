@@ -69,6 +69,7 @@ class LocalChannel(BaseChannel):
                 # the pipe-buffer deadlock entirely.
                 result = subprocess.run(
                     actual_cmd, shell=True,
+                    stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     timeout=timeout, check=False,
@@ -89,7 +90,9 @@ class LocalChannel(BaseChannel):
             else:
                 # Normal capture for recon attacks (nmap, hydra, etc.)
                 result = subprocess.run(
-                    actual_cmd, shell=True, capture_output=True, text=True,
+                    actual_cmd, shell=True,
+                    stdin=subprocess.DEVNULL,
+                    capture_output=True, text=True,
                     timeout=timeout, check=False,
                 )
                 elapsed = time.time() - start

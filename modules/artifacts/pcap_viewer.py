@@ -56,7 +56,7 @@ def read_pcap(path: str, max_packets: int = 500) -> tuple[list[PacketRow], str]:
             "-E", "separator=|",
             "-c", str(max_packets),
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+        result = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30, check=False)
         if result.returncode != 0:
             return [], f"tshark error: {result.stderr[:200]}"
 

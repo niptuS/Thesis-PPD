@@ -110,7 +110,10 @@ class CaptureService:
             cmd = self._build_command(tool, tool_name)
             self._log(f"Command: {' '.join(cmd)}", "INFO")
             self._pcap_proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
 
             time.sleep(1)
