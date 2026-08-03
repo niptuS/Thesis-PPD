@@ -62,9 +62,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/niptuS/Thesis-PPD"
-Repository = "https://github.com/niptuS/Thesis-PPD"
-Issues = "https://github.com/niptuS/Thesis-PPD/issues"
+Homepage = "https://github.com/patricio-paez/sh-dataset"
+Repository = "https://github.com/patricio-paez/sh-dataset"
+Issues = "https://github.com/patricio-paez/sh-dataset/issues"
 
 [project.scripts]
 sh-dataset = "App:main"

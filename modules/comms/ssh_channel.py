@@ -113,13 +113,35 @@ class SSHChannel(BaseChannel):
             if self.password:
                 connect_kwargs["password"] = self.password
             client.connect(**connect_kwargs)
+
+            # For flood attacks, redirect output to /dev/null on the remote
+            # host to avoid paramiko's stdout.read() blocking on a massive
+            # output stream (pipe-buffer deadlock).
+            is_high_output = any(
+                p in command for p in (
+                    "--flood", "slowloris", "aireplay-ng --deauth",
+                )
+            )
+            if is_high_output:
+                command = f"{command} > /dev/null 2>&1"
+
             _, stdout, stderr = client.exec_command(command, timeout=timeout)
-            out = stdout.read().decode("utf-8", errors="replace").strip()
-            err = stderr.read().decode("utf-8", errors="replace").strip()
-            exit_code = stdout.channel.recv_exit_status()
+            # For high-output attacks, don't read stdout/stderr — just get
+            # the exit code. Reading would block on the massive output.
+            if is_high_output:
+                exit_code = stdout.channel.recv_exit_status()
+                out = ""
+                err = ""
+            else:
+                out = stdout.read().decode("utf-8", errors="replace").strip()
+                err = stderr.read().decode("utf-8", errors="replace").strip()
+                exit_code = stdout.channel.recv_exit_status()
             client.close()
             elapsed = time.time() - start
-            if exit_code == 0:
+            # Exit code 124 = the `timeout` command killed the process after
+            # its duration. 137 = SIGKILL (from -k 2). Both are expected for
+            # continuous flood attacks.
+            if exit_code in (0, 124, 137):
                 return ChannelResult(success=True, output=out, duration=elapsed)
             return ChannelResult(
                 success=False, output=out,
@@ -216,6 +238,17 @@ class SSHChannel(BaseChannel):
             return ChannelResult(
                 success=False, error="No password and no paramiko",
             )
+
+        # For flood attacks, redirect remote output to /dev/null to avoid
+        # the local subprocess.run() blocking on massive captured output.
+        is_high_output = any(
+            p in command for p in (
+                "--flood", "slowloris", "aireplay-ng --deauth",
+            )
+        )
+        if is_high_output:
+            command = f"{command} > /dev/null 2>&1"
+
         cmd = [
             "sshpass", "-p", self.password,
             "ssh", "-o", "StrictHostKeyChecking=no",
@@ -223,11 +256,28 @@ class SSHChannel(BaseChannel):
             f"{self.user}@{self.host}", command,
         ]
         try:
+            if is_high_output:
+                result = subprocess.run(
+                    cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    timeout=timeout, check=False,
+                )
+                elapsed = time.time() - start
+                if result.returncode in (0, 124, 137):
+                    return ChannelResult(
+                        success=True, output="", duration=elapsed,
+                    )
+                return ChannelResult(
+                    success=False,
+                    error=f"exit code {result.returncode}",
+                    duration=elapsed,
+                )
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=timeout, check=False,
             )
             elapsed = time.time() - start
-            if result.returncode == 0:
+            # Exit code 124 = the `timeout` command killed the process after
+            # its duration. 137 = SIGKILL. Both expected for flood attacks.
+            if result.returncode in (0, 124, 137):
                 return ChannelResult(
                     success=True, output=result.stdout.strip(), duration=elapsed,
                 )
@@ -242,6 +292,13 @@ class SSHChannel(BaseChannel):
                 error="sshpass not installed + paramiko not available",
             )
         except subprocess.TimeoutExpired:
+            # For flood attacks, subprocess timeout means the `timeout`
+            # command didn't kill it fast enough — the attack still ran.
+            if is_high_output:
+                return ChannelResult(
+                    success=True, output="",
+                    duration=time.time() - start,
+                )
             return ChannelResult(
                 success=False, error=f"timeout ({timeout}s)",
             )

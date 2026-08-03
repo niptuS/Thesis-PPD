@@ -51,29 +51,56 @@ plugins/attacks/                ← Custom Python attack scripts
 tests/                          ← Unit tests (155 tests)
 ```
 
+### Service layer
+
+The live execution pipeline is split into five independently testable services, each with a single responsibility:
+
+| Service | Responsibility | Key method |
+|---------|----------------|------------|
+| `CaptureService` | Find capture tool (tcpdump/tshark/dumpcap), start/stop PCAP subprocess, handle chunk rotation | `start()`, `stop()`, `find_pcap_files()` |
+| `EventExecutor` | Route timeline events to the right channel (HTTP/MQTT/SSH/Local/plugin) | `fire(event_dict)` |
+| `FlowExtractor` | Extract raw flow rows from PCAP(s) via NFStream (fallback: tshark) | `extract(pcap_files, flows_path)` |
+| `FlowLabeler` | Assign `(src_role, dst_role, label, sublabel, kill_chain, subcategory)` to each flow | `classify(src_ip, dst_ip)`, `label(flows_path)` |
+| `ArtifactManifestWriter` | Write metadata JSON manifest (with SHA-256) + execution log | `write_manifest(...)`, `save_execution_log(...)` |
+
+The `LiveExecutionEngine` is now a thin orchestrator (~330 lines, down from ~1386) that sequences the 5 services and exposes a thread-safe snapshot for the UI. All scientific decisions (labeling logic, extraction strategy, manifest format) live in the services and can be unit-tested in isolation.
+
+### Communication layer
+
+A single `modules/comms/` layer replaces the previous split between `modules/communication/` (executors) and `modules/comms/` (clients). Every channel inherits from `BaseChannel` and returns a unified `ChannelResult`:
+
+| Channel | Use | Library |
+|---------|-----|---------|
+| `LocalChannel` | Run shell commands on this machine (local attacks) | subprocess |
+| `HTTPChannel` | REST requests to IoT devices with a web interface | urllib (stdlib) |
+| `MQTTChannel` | Publish commands to an MQTT broker | paho-mqtt |
+| `SSHChannel` | Execute attacks remotely on Kali Linux (with sudo/PTY support) | paramiko |
+
+The legacy `modules/communication/` package is kept as a backwards-compatibility shim that re-exports the new symbols under the old names, so existing imports keep working.
+
 ## Attack Library
 
 17 native attacks using real Kali Linux tools:
 
-| Category    | Attack         | Tool          | Requires root |
-| ----------- | -------------- | ------------- | :-----------: |
-| DoS         | SYN Flood      | hping3        |       ✓       |
-| DoS         | UDP Flood      | hping3        |       ✓       |
-| DoS         | ICMP Flood     | hping3        |       ✓       |
-| DoS         | TCP Flood      | hping3        |       ✓       |
-| DoS         | HTTP Slowloris | slowloris     |               |
-| DoS         | Ping Flood     | nping         |               |
-| DoS         | MQTT Flood     | mosquitto_pub |               |
-| DoS         | CoAP Flood     | coap-client   |               |
-| Recon       | Port Scan      | nmap          |               |
-| Recon       | Vuln Scan      | nmap          |               |
-| Recon       | OS Detection   | nmap          |       ✓       |
-| MITM        | ARP Spoof      | arpspoof      |       ✓       |
-| MITM        | ARP Spoof      | ettercap      |       ✓       |
-| Brute Force | SSH            | hydra         |               |
-| Brute Force | HTTP           | hydra         |               |
-| Brute Force | Telnet         | hydra         |               |
-| WiFi        | Deauth         | aireplay-ng   |       ✓       |
+| Category | Attack | Tool | Requires root |
+|----------|--------|------|:-------------:|
+| DoS | SYN Flood | hping3 | ✓ |
+| DoS | UDP Flood | hping3 | ✓ |
+| DoS | ICMP Flood | hping3 | ✓ |
+| DoS | TCP Flood | hping3 | ✓ |
+| DoS | HTTP Slowloris | slowloris | |
+| DoS | Ping Flood | nping | |
+| DoS | MQTT Flood | mosquitto_pub | |
+| DoS | CoAP Flood | coap-client | |
+| Recon | Port Scan | nmap | |
+| Recon | Vuln Scan | nmap | |
+| Recon | OS Detection | nmap | ✓ |
+| MITM | ARP Spoof | arpspoof | ✓ |
+| MITM | ARP Spoof | ettercap | ✓ |
+| Brute Force | SSH | hydra | |
+| Brute Force | HTTP | hydra | |
+| Brute Force | Telnet | hydra | |
+| WiFi | Deauth | aireplay-ng | ✓ |
 
 ### Plugins
 
@@ -91,18 +118,17 @@ camera, bulb, plug, sensor, speaker, thermostat, lock, doorbell, vacuum, tv, hub
 - **MQTT**: Real topic discovery (subscribe `#`) + Tasmota/Zigbee2MQTT templates for all 16 types
 
 Scan results:
-
 - `✓` (200) → action available in the timeline
 - `🔒` (401/403) → requires credentials, re-scanable with auth
 - `✗` (404/500) → not available
 
 ## Communication with devices
 
-| Protocol | Use                                           | Library         |
-| -------- | --------------------------------------------- | --------------- |
-| HTTP     | REST requests to devices with a web interface | urllib (stdlib) |
-| MQTT     | Publish commands to the MQTT broker           | paho-mqtt       |
-| SSH      | Remote attack execution on Kali machines      | paramiko        |
+| Protocol | Use | Library |
+|----------|-----|---------|
+| HTTP | REST requests to devices with a web interface | urllib (stdlib) |
+| MQTT | Publish commands to the MQTT broker | paho-mqtt |
+| SSH | Remote attack execution on Kali machines | paramiko |
 
 ## Outputs
 
@@ -136,29 +162,29 @@ Main fields: `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`, `bidirectio
 
 Dependencies are split into three files for clarity:
 
-| File                    | Contents                                 | Install command                        |
-| ----------------------- | ---------------------------------------- | -------------------------------------- |
-| `requirements/base.txt` | Runtime dependencies (end users)         | `pip install -r requirements/base.txt` |
+| File | Contents | Install command |
+|------|----------|-----------------|
+| `requirements/base.txt` | Runtime dependencies (end users) | `pip install -r requirements/base.txt` |
 | `requirements/test.txt` | Runtime + test runner (CI, contributors) | `pip install -r requirements/test.txt` |
-| `requirements/dev.txt`  | Runtime + tests + linting (maintainers)  | `pip install -r requirements/dev.txt`  |
+| `requirements/dev.txt` | Runtime + tests + linting (maintainers) | `pip install -r requirements/dev.txt` |
 
 All pins are exact (`==`) for reproducibility. The top-level `requirements.txt` simply includes `base.txt` for backwards compatibility with `pip install -r requirements.txt`.
 
-| Library        | Version | Use                                      |
-| -------------- | ------- | ---------------------------------------- |
-| nfstream       | 9.1.0   | Network flow extraction from PCAP        |
-| scapy          | 2.6.1   | ARP scanning + attack plugins            |
-| paramiko       | 3.5.1   | SSH connections to attacker machines     |
-| paho-mqtt      | 2.1.0   | MQTT communication with IoT devices      |
-| psutil         | 7.0.0   | Network interface detection              |
-| python-nmap    | 0.7.1   | Network device scanning                  |
-| zeroconf       | 0.146.1 | mDNS / Zeroconf discovery                |
-| slowloris      | 0.2.0   | HTTP DoS attack                          |
-| requests       | 2.32.4  | HTTP library (some executors)            |
-| windows-curses | 2.4.1   | curses support on Windows (Windows only) |
-| pytest         | 8.4.1   | Test runner (test extra)                 |
-| flake8         | 7.3.0   | PEP 8 compliance (dev extra)             |
-| pylint         | 3.3.7   | Code quality score (dev extra)           |
+| Library | Version | Use |
+|---------|---------|-----|
+| nfstream | 9.1.0 | Network flow extraction from PCAP |
+| scapy | 2.6.1 | ARP scanning + attack plugins |
+| paramiko | 3.5.1 | SSH connections to attacker machines |
+| paho-mqtt | 2.1.0 | MQTT communication with IoT devices |
+| psutil | 7.0.0 | Network interface detection |
+| python-nmap | 0.7.1 | Network device scanning |
+| zeroconf | 0.146.1 | mDNS / Zeroconf discovery |
+| slowloris | 0.2.0 | HTTP DoS attack |
+| requests | 2.32.4 | HTTP library (some executors) |
+| windows-curses | 2.4.1 | curses support on Windows (Windows only) |
+| pytest | 8.4.1 | Test runner (test extra) |
+| flake8 | 7.3.0 | PEP 8 compliance (dev extra) |
+| pylint | 3.3.7 | Code quality score (dev extra) |
 
 ### Package metadata
 
@@ -209,25 +235,25 @@ The Dockerfile uses a pinned `kalilinux/kali-rolling:2025.2` base image and pins
 >
 > On **native Linux**, `--net=host` does expose the host's real interfaces.
 
-| Mode                     | Wi-Fi/Ethernet capture | SSH attacks | PCAP analysis |
-| ------------------------ | :--------------------: | :---------: | :-----------: |
-| Native (python App.py)   |           ✓            |      ✓      |       ✓       |
-| Docker on Linux          |           ✓            |      ✓      |       ✓       |
-| Docker Desktop (Win/Mac) | ✗ (VM interfaces only) |      ✓      |       ✓       |
+| Mode | Wi-Fi/Ethernet capture | SSH attacks | PCAP analysis |
+|------|:----------------------:|:-----------:|:-------------:|
+| Native (python App.py) | ✓ | ✓ | ✓ |
+| Docker on Linux | ✓ | ✓ | ✓ |
+| Docker Desktop (Win/Mac) | ✗ (VM interfaces only) | ✓ | ✓ |
 
 ## Usage
 
 ### TUI navigation
 
-| Key    | Action                          |
-| ------ | ------------------------------- |
-| ↑↓     | Navigate between elements       |
-| ←→     | Change section in the side menu |
-| Enter  | Edit field / open item          |
-| Ctrl+S | Save scenario                   |
-| Ctrl+O | Load scenario                   |
-| Ctrl+R | Run scenario                    |
-| Esc    | Back / cancel                   |
+| Key | Action |
+|-----|--------|
+| ↑↓ | Navigate between elements |
+| ←→ | Change section in the side menu |
+| Enter | Edit field / open item |
+| Ctrl+S | Save scenario |
+| Ctrl+O | Load scenario |
+| Ctrl+R | Run scenario |
+| Esc | Back / cancel |
 
 ### Typical flow
 

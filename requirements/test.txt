@@ -2,6 +2,7 @@
 # SH-DATASET — test dependencies (unit test runner)
 # Install with:  pip install -r requirements/test.txt
 # ─────────────────────────────────────────────────────────────────────
+# Not needed at runtime; only for running the test suite.
 
 -r base.txt
 

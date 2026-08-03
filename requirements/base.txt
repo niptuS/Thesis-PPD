@@ -2,6 +2,8 @@
 # SH-DATASET — runtime dependencies (required to run the orchestrator)
 # Install with:  pip install -r requirements/base.txt
 # ─────────────────────────────────────────────────────────────────────
+# All runtime pins are exact (==) so the production environment is
+# reproducible. Bump explicitly when upgrading.
 
 # Network flow extraction from PCAP
 nfstream==9.1.0
