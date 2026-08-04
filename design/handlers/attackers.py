@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 from design.Menu_logs import EVENT_LOG
 from design.Menu_attackers import build_attackers_section
-from modules.communication.attacker_profile import AttackerProfile
-from modules.communication.ssh_executor import SSHExecutor
+from modules.comms.attacker_profile import AttackerProfile
+from modules.comms.ssh_channel import SSHChannel
 from design.overlays import text_input_overlay
 
 
@@ -62,13 +62,13 @@ class AttackersController:
     Salida: Optional[SSHExecutor]
     Descripción: Get SSH executor for an attacker by IP.
     """
-    def get_executor(self, ip: str) -> Optional[SSHExecutor]:
+    def get_executor(self, ip: str) -> Optional[SSHChannel]:
         p = self.get_profile(ip)
         if p is None:
             return None
         if p.is_local:
             return None
-        return SSHExecutor(
+        return SSHChannel(
             host=p.device_ip, user=p.ssh_user, port=p.ssh_port,
             key_file=p.ssh_key, password=p.ssh_password,
         )

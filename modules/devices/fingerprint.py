@@ -282,6 +282,7 @@ def nmap_service_scan(ip: str, timeout: int = 15) -> tuple[list[int], list[str]]
     try:
         result = subprocess.run(
             ["nmap", "-sV", "--top-ports", "20", "-T4", ip],
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             timeout=timeout,

@@ -54,9 +54,9 @@ def build_live_section(
         f"  {t('live', 'duration'):<12}: {_fmt_time(planned_s)}",
         "",
         f"─── {t('live', 'output_files')} ───────────────────────────────",
-        f"  PCAP        : {pcap_path or pending}",
-        f"  Metadata    : {metadata_path or pending}",
-        f"  Flows CSV   : {flows_path or pending}",
+        f"  {t('home', 'pcap'):<12}: {pcap_path or pending}",
+        f"  {t('home', 'metadata'):<12}: {metadata_path or pending}",
+        f"  {t('live', 'flows_csv'):<12}: {flows_path or pending}",
         "",
         f"─── {t('live', 'current_activity')} ─────────────────────────────────",
         f"  {t('live', 'benign'):<12}: {active_benign}",
@@ -68,9 +68,9 @@ def build_live_section(
         content.append(f"  {t('live', 'flows_nfstream')}: {flows_generated}")
     content.append("")
     content.append(f"─── {t('live', 'health')} ───────────────────────────────────────────")
-    content.append(f"  [capture= {_state_indicator(capture_ok)}]  [logger= {_state_indicator(logger_ok)}]")
+    content.append(f"  [{t('live', 'capture_label')}= {_state_indicator(capture_ok)}]  [{t('live', 'logger_label')}= {_state_indicator(logger_ok)}]")
     if error:
-        content.append(f"  ⚠ Error: {error}")
+        content.append(f"  ⚠ {t('live', 'error')}: {error}")
 
     if state == "IDLE":
         hint = t("live", "hint_idle")
@@ -79,7 +79,7 @@ def build_live_section(
     else:
         hint = t("live", "hint_other", state, flows_generated)
 
-    return Section(key="live", label="Live Execution", hint=hint,
+    return Section(key="live", label=t("menu", "live"), hint=hint,
                    content_lines=content, actions=[], field_map=[])
 
 

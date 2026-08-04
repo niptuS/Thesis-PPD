@@ -171,7 +171,9 @@ class FlowExtractor:
             ]
 
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=120, check=False,
+                cmd,
+                stdin=subprocess.DEVNULL,
+                capture_output=True, text=True, timeout=120, check=False,
             )
             if result.returncode != 0:
                 self._log(f"tshark error: {result.stderr[:200]}", "ERROR")

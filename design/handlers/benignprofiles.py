@@ -453,9 +453,9 @@ class BenignProfilesController:
         profile = self._selected()
         if not profile or not profile.device_ip:
             return
-        from modules.communication.http_executor import HTTPExecutor
+        from modules.comms.http_channel import HTTPChannel
         EVENT_LOG.info(f"Test connection → {profile.device_ip}:{profile.port}…")
-        executor = HTTPExecutor(timeout=5)
+        executor = HTTPChannel(timeout=5)
         ok = executor.test_connection(profile.device_ip, profile.port)
         if ok:
             EVENT_LOG.ok(f"Connection OK: {profile.device_ip}:{profile.port}")

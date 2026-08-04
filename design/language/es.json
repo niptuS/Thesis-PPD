@@ -10,6 +10,7 @@
     "live": "Ejecución en Vivo",
     "logs": "Registros",
     "artifacts": "Artefactos",
+    "viewer": "Visor de Capturas",
     "help": "Ayuda"
   },
   "home": {
@@ -27,7 +28,13 @@
     "start_scenario": "Iniciar escenario",
     "open_logs": "Abrir registros",
     "abort_execution": "Abortar ejecución",
-    "language": "Idioma"
+    "language": "Idioma",
+    "loading": "Cargando...",
+    "hint_default": "Ctrl+O cargar - Ctrl+S guardar - Ctrl+R ejecutar",
+    "hint_focus": "← menú lateral - Enter=editar - Ctrl+O cargar - Ctrl+S guardar",
+    "scenario_name": "Escenario",
+    "start": "Inicio",
+    "duration": "Duración"
   },
   "scenario": {
     "title": "Configuración del Escenario",
@@ -36,7 +43,11 @@
     "environment": "Ambiente",
     "start_time": "Hora de inicio",
     "duration": "Duración planificada",
-    "chunk_size": "Tamaño máx. chunk"
+    "chunk_size": "Tamaño máx. chunk",
+    "duration_format": "Duración (HH:MM:SS / 7d / 2w)",
+    "chunk_size_format": "Tamaño máx. chunk (KB)",
+    "hint_edit": "↑↓=campo - Enter=editar - Ctrl+S=guardar - Ctrl+O=cargar",
+    "duration_title": "Duración del escenario"
   },
   "devices": {
     "title": "Dispositivos de Red",
@@ -48,7 +59,35 @@
     "host_registered": "Host registrado como atacante",
     "host_ip_updated": "Host IP actualizada",
     "device_removed": "Dispositivo removido (+ cascada)",
-    "count": "dispositivo(s)"
+    "count": "dispositivo(s)",
+    "scan_settings": "Configuración de Escaneo",
+    "registered_nodes": "Nodos Registrados",
+    "last_scan": "Último escaneo",
+    "not_set_ctrl_n": "(no configurada — Ctrl+N)",
+    "editable_fields": "Campos editables (Enter=editar)",
+    "role": "Rol",
+    "tags": "Tags",
+    "hostname": "Hostname",
+    "notes": "Notas",
+    "device_type": "Tipo de dispositivo",
+    "lbl_ip": "IP",
+    "lbl_mac": "MAC",
+    "lbl_ports": "Puertos",
+    "lbl_proto": "Proto",
+    "lbl_vendor": "Vendor",
+    "lbl_iot_score": "IoT score",
+    "lbl_status": "Estado",
+    "col_id": "ID",
+    "col_type": "Tipo",
+    "col_role": "Rol",
+    "col_ip": "IP",
+    "col_vendor": "Vendor",
+    "col_st": "St",
+    "col_tags": "Tags",
+    "hint_default": "S=escanear - A=agregar - M=método - R=remover - Enter=editar - ↑↓=navegar",
+    "method_desc_nmap": "Descubrimiento de hosts + escaneo de puertos",
+    "method_desc_arp": "Broadcast ARP (rápido, solo LAN)",
+    "method_desc_all": "nmap + ARP combinado"
   },
   "attacks": {
     "title": "Librería de Ataques",
@@ -64,14 +103,20 @@
     "continuous": "recomendado (continuo)",
     "automatic": "automática (termina solo)",
     "plugins": "PLUGINS",
-    "natives_plugins": "Librería de Ataques ({0} nativos · {1} plugins)",
+    "natives_plugins": "Librería de Ataques ({0} nativos - {1} plugins)",
     "plugin_loaded": "Plugin cargado",
     "available": "Disponible",
     "not_found": "No encontrado",
     "not_verified": "Sin verificar",
     "function": "Función",
     "yes": "Sí",
-    "no": "No"
+    "no": "No",
+    "external_plugin": "Plugin externo",
+    "plugins_count": "plugin(s)",
+    "col_desc": "Desc",
+    "hint_default": "V=verificar - P=plugins - ↑↓=navegar - Tools: {0}/{1} disponible(s)",
+    "hint_not_found": "no encontrada(s)",
+    "hint_plugins": "plugin(s)"
   },
   "timeline": {
     "title": "Línea de Tiempo",
@@ -84,7 +129,24 @@
     "offset": "Offset (HH:MM:SS)",
     "no_events_add": "(sin eventos — A para agregar)",
     "not_calculated": "(sin calcular)",
-    "events_summary": "{0} eventos ({1} pendientes, {2} completados)"
+    "events_summary": "{0} eventos ({1} pendientes, {2} completados)",
+    "scheduled_events": "Eventos Programados",
+    "lbl_id": "ID",
+    "lbl_offset": "Offset",
+    "lbl_scheduled": "Programado",
+    "lbl_action": "Acción",
+    "lbl_source": "Origen",
+    "lbl_target": "Destino",
+    "lbl_duration": "Duración",
+    "lbl_status": "Estado",
+    "lbl_notes": "Notas",
+    "auto_host": "(auto: host)",
+    "col_st": "St",
+    "col_offset": "Offset",
+    "col_type": "Tipo",
+    "col_action": "Acción",
+    "col_target": "Destino",
+    "col_scheduled": "Programado"
   },
   "profiles": {
     "title": "Perfiles Benignos",
@@ -103,7 +165,16 @@
     "http_password": "Contraseña HTTP",
     "no_profiles_add": "(sin perfiles — A para agregar)",
     "no_actions_scan": "(sin acciones — S para escanear endpoints)",
-    "actions_available": "Acciones (solo las available aparecen en Timeline)"
+    "actions_available": "Acciones (solo las available aparecen en Timeline)",
+    "col_tag": "Tag",
+    "col_type": "Tipo",
+    "col_ip": "IP",
+    "col_port": "Puerto",
+    "col_actions": "Acciones",
+    "lbl_ip": "IP",
+    "lbl_port": "Puerto",
+    "lbl_auth": "Auth",
+    "hint_default": "A=agregar - S=escanear endpoints - E=editar - R=remover - {0} perfiles"
   },
   "attackers": {
     "title": "Máquinas Atacantes",
@@ -112,7 +183,18 @@
     "verify_machine": "Verificar en máquina",
     "no_attackers_add": "(sin atacantes — agregue dispositivos con role=attacker en Devices)",
     "not_configured": "(no configurada)",
-    "attackers_summary": "{0} atacantes ({1} local, {2} ssh)"
+    "attackers_summary": "{0} atacantes ({1} local, {2} ssh)",
+    "lbl_connection": "Conexión",
+    "lbl_ssh_user": "Usuario SSH",
+    "lbl_ssh_port": "Puerto SSH",
+    "lbl_ssh_password": "Contraseña SSH",
+    "lbl_ssh_key": "Llave SSH",
+    "enter_to_set": "(Enter)",
+    "col_tag": "Tag",
+    "col_mode": "Modo",
+    "col_ip": "IP",
+    "col_user": "Usuario",
+    "col_port": "Puerto"
   },
   "live": {
     "capture_started": "Captura iniciada en",
@@ -138,11 +220,15 @@
     "next": "Próximo",
     "events": "Eventos",
     "flows_nfstream": "Flujos NFStream",
+    "flows_csv": "Flujos CSV",
     "runtime": "Runtime",
     "health": "Health",
-    "hint_idle": "Ctrl+R=iniciar · Configure escenario y dispositivos antes de ejecutar",
-    "hint_running": "Ctrl+P=pausar · Ctrl+X=abortar · {0}/{1}",
-    "hint_other": "Estado: {0} · Flujos: {1} · Ctrl+R=reiniciar"
+    "capture_label": "captura",
+    "logger_label": "logger",
+    "error": "Error",
+    "hint_idle": "Ctrl+R=iniciar - Ctrl+X=abortar - Configure escenario y dispositivos antes de ejecutar",
+    "hint_running": "Ctrl+P=pausar - Ctrl+X=abortar - {0}/{1}",
+    "hint_other": "Estado: {0} - Flujos: {1} - Ctrl+R=reiniciar"
   },
   "logs": {
     "title": "Stream de Eventos",
@@ -151,7 +237,7 @@
     "filter": "Filtro",
     "showing": "mostrando",
     "showing_range": "── mostrando {0}-{1} de {2}  (↑↓ desplazar) ──",
-    "hint": "↑↓=desplazar · Eventos: {0}"
+    "hint": "↑↓=desplazar - Eventos: {0}"
   },
   "artifacts": {
     "title": "Archivos de Captura",
@@ -166,8 +252,34 @@
     "type": "Tipo",
     "size": "Tamaño",
     "page": "Pág",
-    "hint_files": "Enter=abrir · R=refrescar · ↑↓=navegar",
-    "hint_detail": "Esc=volver · ↑↓=navegar · PgUp/PgDn=página"
+    "hint_files": "Enter=abrir - R=refrescar - ↑↓=navegar",
+    "hint_detail": "Esc=volver - ↑↓=navegar - PgUp/PgDn=página",
+    "col_no": "#",
+    "col_time": "Tiempo",
+    "col_source": "Origen",
+    "col_dest": "Dest",
+    "col_proto": "Proto",
+    "col_len": "Len",
+    "col_ports": "Puertos",
+    "col_flags": "Flags"
+  },
+  "help": {
+    "hint": "Referencia rápida del flujo completo. Esc=volver",
+    "nav_title": "Navegación",
+    "nav_move": "mover en menú o listas",
+    "nav_enter": "abrir / editar",
+    "nav_esc": "volver a Inicio",
+    "nav_tab": "cambiar secciones",
+    "nav_help": "ayuda contextual",
+    "nav_q": "cerrar panel actual",
+    "shortcuts_title": "Atajos Globales",
+    "sc_save": "guardar escenario",
+    "sc_run": "iniciar / reanudar",
+    "sc_pause": "pausar",
+    "sc_logs": "abrir logs",
+    "sc_abort": "abortar escenario",
+    "flow_title": "Flujo Recomendado",
+    "esc_back": "Esc Volver"
   },
   "common": {
     "available": "disponibles",
@@ -184,6 +296,26 @@
     "select_language": "Seleccionar idioma",
     "cancel": "Cancelar",
     "no_ip": "sin IP",
-    "page": "Pág"
+    "page": "Pág",
+    "error": "Error",
+    "of": "de",
+    "editing": "(editando)",
+    "hint_prefix": "Hint:",
+    "footer_ok_cancel": "Enter=ok  Esc=cancelar",
+    "footer_navigate_ok_cancel": "↑↓=navegar  Enter=ok  Esc=cancelar",
+    "footer_wheel": "←→=slot  ↑↓=valor  Enter=ok  Esc=×",
+    "footer_enter_select": "Enter=seleccionar  Esc=cancelar",
+    "terminal_too_small": "Terminal muy pequeña. Mín 40x10.",
+    "selection_canceled": "Selección cancelada.",
+    "config_init_failed": "! No se pudo inicializar config.",
+    "no_scenario": "! No hay escenario. Edita los campos o usa Ctrl+O.",
+    "file_path": "Ruta del archivo",
+    "select_iface": "Seleccionar interfaz de red",
+    "select_role": "Seleccionar Rol",
+    "time": "Tiempo",
+    "date_and_time": "Fecha y Hora",
+    "duration": "Duración",
+    "confirm_cancel": "[Enter] Confirmar [Esc] Cancelar",
+    "menu_title": "MENÚ"
   }
 }

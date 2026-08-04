@@ -7,6 +7,8 @@ from __future__ import annotations
 import curses
 from typing import Optional
 
+from modules.i18n import t
+
 
 PAIR_OVERLAY_BG = 8
 PAIR_OVERLAY_TTL = 9
@@ -23,7 +25,7 @@ Entrada: stdscr, oy, ox, h, w, title, footer
 Salida: None
 Descripción: Draws a bordered overlay box with title and footer.
 """
-def _draw_box(stdscr, oy, ox, h, w, title="", footer="Enter=ok  Esc=cancel"):
+def _draw_box(stdscr, oy, ox, h, w, title="", footer=t("common", "footer_ok_cancel")):
     for y in range(oy, oy + h):
         stdscr.attron(curses.color_pair(PAIR_OVERLAY_BG))
         stdscr.addstr(y, ox, " " * w)
@@ -68,7 +70,7 @@ def role_select_overlay(stdscr, current: str, roles: list[str]) -> str:
     oy = (maxy - h) // 2
     ox = (maxx - w) // 2
     while True:
-        _draw_box(stdscr, oy, ox, h, w, "Select Role")
+        _draw_box(stdscr, oy, ox, h, w, t("common", "select_role"))
         for i, role in enumerate(roles):
             row = oy + 2 + i
             icon = _ROLE_ICONS.get(role, " ")
@@ -95,9 +97,9 @@ def role_select_overlay(stdscr, current: str, roles: list[str]) -> str:
 
 
 _METHOD_DESC = {
-    "nmap": "Host discovery + port scan",
-    "arp": "ARP broadcast (fast, LAN only)",
-    "all": "nmap + ARP combined",
+    "nmap": t("devices", "method_desc_nmap"),
+    "arp": t("devices", "method_desc_arp"),
+    "all": t("devices", "method_desc_all"),
 }
 
 
@@ -118,7 +120,7 @@ def method_select_overlay(stdscr, current: str, methods: list[str]) -> str:
     oy = (maxy - h) // 2
     ox = (maxx - w) // 2
     while True:
-        _draw_box(stdscr, oy, ox, h, w, "Scan Method")
+        _draw_box(stdscr, oy, ox, h, w, t("devices", "scan_method"))
         for i, method in enumerate(methods):
             row = oy + 2 + i
             desc = _METHOD_DESC.get(method, "")
@@ -165,9 +167,9 @@ def attack_select_overlay(stdscr, attacks: list[dict], current: str = "") -> Opt
     oy = (maxy - h) // 2
     ox = (maxx - w) // 2
     while True:
-        _draw_box(stdscr, oy, ox, h, w, "Select Attack", "↑↓=navigate  Enter=ok  Esc=cancel")
+        _draw_box(stdscr, oy, ox, h, w, t("timeline", "select_attack"), t("common", "footer_navigate_ok_cancel"))
         stdscr.attron(curses.color_pair(PAIR_OVERLAY_BG) | curses.A_UNDERLINE)
-        stdscr.addstr(oy + 2, ox + 2, f"{'Attack':<14} {'Tool':<10} {'MITRE':<12} {'Desc':<18}"[:w - 4])
+        stdscr.addstr(oy + 2, ox + 2, f"{t('timeline', 'lbl_action'):<14} {t('attacks', 'tool'):<10} {t('attacks', 'mitre'):<12} {t('attacks', 'col_desc'):<18}"[:w - 4])
         stdscr.attroff(curses.color_pair(PAIR_OVERLAY_BG) | curses.A_UNDERLINE)
         list_top = oy + 3
         visible = h - 5
@@ -228,9 +230,9 @@ def device_select_overlay(stdscr, title: str, devices: list, current_ip: str = "
     oy = (maxy - h) // 2
     ox = (maxx - w) // 2
     while True:
-        _draw_box(stdscr, oy, ox, h, w, title, "↑↓=navigate  Enter=ok  Esc=cancel")
+        _draw_box(stdscr, oy, ox, h, w, title, t("common", "footer_navigate_ok_cancel"))
         stdscr.attron(curses.color_pair(PAIR_OVERLAY_BG) | curses.A_UNDERLINE)
-        stdscr.addstr(oy + 2, ox + 2, f"{'IP':<16} {'Type':<10} {'Tags':<20} {'Role':<8}"[:w - 4])
+        stdscr.addstr(oy + 2, ox + 2, f"{t('devices', 'col_ip'):<16} {t('devices', 'col_type'):<10} {t('devices', 'col_tags'):<20} {t('devices', 'col_role'):<8}"[:w - 4])
         stdscr.attroff(curses.color_pair(PAIR_OVERLAY_BG) | curses.A_UNDERLINE)
         list_top = oy + 3
         visible = h - 5
@@ -315,7 +317,7 @@ Salida: Optional[str]
 Descripción: HH:MM:SS wheel selector. ←→ moves between slots, ↑↓ increments.
              Returns "HH:MM:SS" or None on cancel.
 """
-def time_wheel_overlay(stdscr, title: str = "Time", current: str = "00:00:00") -> Optional[str]:
+def time_wheel_overlay(stdscr, title: str = t("common", "time"), current: str = "00:00:00") -> Optional[str]:
     parts = current.split(":")
     vals = [0, 0, 0]
     for i, p in enumerate(parts[:3]):
@@ -334,7 +336,7 @@ def time_wheel_overlay(stdscr, title: str = "Time", current: str = "00:00:00") -
     ox = (maxx - w) // 2
 
     while True:
-        _draw_box(stdscr, oy, ox, h, w, title, "←→=slot  ↑↓=value  Enter=ok  Esc=×")
+        _draw_box(stdscr, oy, ox, h, w, title, t("common", "footer_wheel"))
 
         for i in range(3):
             cx = ox + 6 + i * 10
@@ -400,7 +402,7 @@ Salida: Optional[str]
 Descripción: Duration wheel: Mo:DD:HH:MM:SS. ←→ moves between slots, ↑↓ increments.
              Returns formatted duration string.
 """
-def duration_wheel_overlay(stdscr, title: str = "Duration",
+def duration_wheel_overlay(stdscr, title: str = t("common", "duration"),
                            current: str = "00:00:30") -> Optional[str]:
     vals = [0, 0, 0, 0, 0]
     if isinstance(current, str):
@@ -441,7 +443,7 @@ def duration_wheel_overlay(stdscr, title: str = "Duration",
     ox = (maxx - w) // 2
 
     while True:
-        _draw_box(stdscr, oy, ox, h, w, title, "←→=slot  ↑↓=value  Enter=ok  Esc=×")
+        _draw_box(stdscr, oy, ox, h, w, title, t("common", "footer_wheel"))
 
         for i in range(5):
             cx = ox + 4 + i * 9
@@ -505,7 +507,7 @@ Salida: Optional[str]
 Descripción: DD/MM/YYYY HH:MM:SS wheel selector (6 slots). ←→ moves between
              slots, ↑↓ increments. Returns "DD/MM/YYYY HH:MM:SS" or None.
 """
-def datetime_wheel_overlay(stdscr, title: str = "Date and Time",
+def datetime_wheel_overlay(stdscr, title: str = t("common", "date_and_time"),
                            current: str = "01/01/2025 00:00:00") -> Optional[str]:
     parts = current.replace("/", " ").replace(":", " ").split()
     vals = [1, 1, 2025, 0, 0, 0]
@@ -526,7 +528,7 @@ def datetime_wheel_overlay(stdscr, title: str = "Date and Time",
     ox = (maxx - w) // 2
 
     while True:
-        _draw_box(stdscr, oy, ox, h, w, title, "←→=slot  ↑↓=value  Enter=ok  Esc=×")
+        _draw_box(stdscr, oy, ox, h, w, title, t("common", "footer_wheel"))
 
         for i in range(6):
             cx = ox + 3 + i * 8

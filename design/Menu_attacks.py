@@ -94,7 +94,7 @@ def build_attacks_section(
         content.append(f"  {t('attacks', 'tool'):<12}: {sel.tool}  ({avail_str})")
         content.append(f"  {t('attacks', 'mitre'):<12}: {sel.mitre_ref}")
         clean_cat = sel.category.removeprefix("plugin:")
-        content.append(f"  {t('attacks', 'category'):<12}: {clean_cat}{'  · External plugin' if is_plugin else ''}")
+        content.append(f"  {t('attacks', 'category'):<12}: {clean_cat}{'  - ' + t('attacks', 'external_plugin') if is_plugin else ''}")
         if sel.continuous:
             dur_min = sel.recommended_dur_s // 60
             dur_sec = sel.recommended_dur_s % 60
@@ -113,15 +113,15 @@ def build_attacks_section(
     tools_total = len(set(a.tool for a in native))
 
     hint_parts = [
-        f"V=verify · P=plugins · ↑↓=navigate · Tools: {n_ok}/{tools_total} available"
+        t('attacks', 'hint_default', n_ok, tools_total)
     ]
     if n_fail:
-        hint_parts.append(f" · {n_fail} not found")
+        hint_parts.append(f" - {n_fail} {t('attacks', 'hint_not_found')}")
     if plugins:
-        hint_parts.append(f" · {len(plugins)} plugin(s)")
+        hint_parts.append(f" - {len(plugins)} {t('attacks', 'hint_plugins')}")
 
     return Section(
-        key="attacks", label="Attack Library",
+        key="attacks", label=t("menu", "attacks"),
         hint="".join(hint_parts),
         content_lines=content, actions=[], field_map=[],
     )

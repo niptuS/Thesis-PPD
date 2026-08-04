@@ -258,7 +258,10 @@ class SSHChannel(BaseChannel):
         try:
             if is_high_output:
                 result = subprocess.run(
-                    cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    cmd,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                     timeout=timeout, check=False,
                 )
                 elapsed = time.time() - start
@@ -272,7 +275,10 @@ class SSHChannel(BaseChannel):
                     duration=elapsed,
                 )
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=timeout, check=False,
+                cmd,
+                stdin=subprocess.DEVNULL,
+                capture_output=True, text=True,
+                timeout=timeout, check=False,
             )
             elapsed = time.time() - start
             # Exit code 124 = the `timeout` command killed the process after
@@ -366,7 +372,9 @@ class SSHChannel(BaseChannel):
             ssh_cmd.append(f"{self.user}@{self.host}")
             ssh_cmd.append(command)
             result = subprocess.run(
-                ssh_cmd, capture_output=True, text=True,
+                ssh_cmd,
+                stdin=subprocess.DEVNULL,
+                capture_output=True, text=True,
                 timeout=timeout, check=False,
             )
             return SSHResult(

@@ -176,7 +176,7 @@ def build_logs_section(
 
     return Section(
         key="logs",
-        label="Logs",
+        label=t("menu", "logs"),
         hint=t("logs", "hint", elog.count()),
         content_lines=content,
         actions=[],

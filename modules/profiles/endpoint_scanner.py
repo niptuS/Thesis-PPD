@@ -306,16 +306,22 @@ def _optimal_workers() -> int:
 
 
 def scan_endpoints(device_ip, device_type, port=80, timeout=1.5,
-                   auth_user="", auth_pass="", log_fn=None):
+                   auth_user="", auth_pass="", log_fn=None,
+                   active_discovery: bool = True):
     """
-    Entrada: device_ip, device_type, port, timeout, auth_user, auth_pass, log_fn
-    Salida: None
-    Descripción: scan endpoints
+    Entrada: device_ip, device_type, port, timeout, auth_user, auth_pass,
+             log_fn, active_discovery
+    Salida: dict
+    Descripción: Scans a device for HTTP endpoints using the static
+                 dictionary. When active_discovery=True (default), also
+                 runs the active discovery pipeline (fingerprinting +
+                 crawling + parameter fuzzing) and merges any new
+                 endpoints found into the results.
     """
     db = ENDPOINT_DB.get(device_type, {})
     if not db:
         if log_fn:
-            log_fn(f"Sin endpoints para '{device_type}'", "WARN")
+            log_fn(f"No endpoints for '{device_type}'", "WARN")
         return {}
 
     workers = _optimal_workers()
@@ -329,7 +335,7 @@ def scan_endpoints(device_ip, device_type, port=80, timeout=1.5,
             all_tasks.append((action_name, ep_info))
 
     if log_fn:
-        log_fn(f"  Total: {len(all_tasks)} endpoints a probar", "INFO")
+        log_fn(f"  Total: {len(all_tasks)} endpoints to probe", "INFO")
 
     completed = [0]
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
@@ -359,14 +365,52 @@ def scan_endpoints(device_ip, device_type, port=80, timeout=1.5,
 
     if log_fn:
         log_fn(f"  Completed: {completed[0]}/{len(all_tasks)} endpoints", "INFO")
+
+    # ── Active discovery: fingerprint + crawl + fuzz ──────────────────────
+    if active_discovery:
+        try:
+            from modules.profiles.discovery import run_active_discovery
+            if log_fn:
+                log_fn("  Active discovery (fingerprint + crawl + fuzz)…", "INFO")
+            discovery = run_active_discovery(
+                device_ip=device_ip, port=port, device_type=device_type,
+                timeout=timeout, auth_user=auth_user, auth_pass=auth_pass,
+                mqtt_port=0,  # MQTT handled separately by scan_mqtt
+                log_fn=log_fn,
+            )
+            # Merge crawled endpoints as new actions
+            for crawled in discovery.crawled_endpoints:
+                if crawled.available:
+                    action_key = f"crawled_{crawled.path.replace('/', '_').strip('_')}"
+                    results.setdefault(action_key, []).append(EndpointResult(
+                        endpoint=crawled.path,
+                        action_name=action_key,
+                        method="GET",
+                        protocol="http",
+                        status_code=crawled.status_code,
+                        available=True,
+                        description=f"Crawled from {crawled.source}",
+                    ))
+                    if log_fn:
+                        log_fn(f"  🔍 New: {crawled.path} → {crawled.status_code}", "OK")
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            if log_fn:
+                log_fn(f"  Active discovery skipped: {exc}", "WARN")
+
     return results
 
 
-def scan_mqtt(device_ip, device_type, port=1883, timeout=3.0, log_fn=None):
-    """Try MQTT connection and discover available topics."""
+def scan_mqtt(device_ip, device_type, port=1883, timeout=3.0, log_fn=None,
+              active_discovery: bool = True):
+    """
+    Entrada: device_ip, device_type, port, timeout, log_fn, active_discovery
+    Salida: dict
+    Descripción: Try MQTT connection and discover available topics.
+                 When active_discovery=True (default), also runs the active
+                 MQTT discovery pipeline (subscribe # + publish probes +
+                 $SYS monitoring) and merges any new topics found.
+    """
     topics = MQTT_TOPICS.get(device_type, {})
-    if not topics:
-        return {}
     results = {}
     try:
         import paho.mqtt.client as mqtt
@@ -397,6 +441,35 @@ def scan_mqtt(device_ip, device_type, port=1883, timeout=3.0, log_fn=None):
                     description=info.get("desc", "MQTT topic"),
                     payload=info.get("payload", ""),
                 )
+
+            # ── Active MQTT discovery ────────────────────────────────────
+            if active_discovery:
+                try:
+                    from modules.profiles.discovery import mqtt_active_discovery
+                    if log_fn:
+                        log_fn("  MQTT active discovery (probes + $SYS)…", "INFO")
+                    discovered_topics, sys_info = mqtt_active_discovery(
+                        device_ip, port,
+                        listen_window=max(timeout * 2, 8.0),
+                        log_fn=log_fn,
+                    )
+                    # Add discovered topics as new actions
+                    for i, topic in enumerate(discovered_topics):
+                        if topic not in [r.endpoint for r in results.values()]:
+                            action_key = f"mqtt_discovered_{i}"
+                            results[action_key] = EndpointResult(
+                                endpoint=topic,
+                                action_name=action_key,
+                                method="SUB", protocol="mqtt",
+                                available=True,
+                                description="Active-discovered topic",
+                            )
+                            if log_fn:
+                                log_fn(f"  🔍 MQTT topic: {topic}", "OK")
+                except Exception as exc:  # pylint: disable=broad-exception-caught
+                    if log_fn:
+                        log_fn(f"  MQTT active discovery skipped: {exc}", "WARN")
+
             return results
         else:
             if log_fn:

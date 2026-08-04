@@ -11,31 +11,21 @@ from modules.i18n import t
 PAGE_SIZE = 10
 
 
-"""
-Entrada: action (ActionDefinition)
-Salida: str
-Descripción: Returns the icon for an action (lock for auth-required, check otherwise).
-"""
 def _action_icon(action) -> str:
     if "_auth" in action.name:
         return "🔒"
     return "✓"
 
 
-"""
-Entrada: profiles (list|None), cursor (int), page (int), detail_cursor (int)
-Salida: Section
-Descripción: Builds the benign profiles section with localized labels and hints.
-"""
 def build_benign_profiles_section(profiles=None, cursor=0, page=0, detail_cursor=-1):
     profs = profiles if profiles is not None else []
     selected = profs[cursor] if profs and 0 <= cursor < len(profs) else None
 
-    content = ["─── Benign Profiles ──────────────────────────────────", ""]
+    content = [f"─── {t('profiles', 'title')} ──────────────────────────────────", ""]
     if not profs:
         content.append(f"  {t('profiles', 'no_profiles_add')}")
     else:
-        content.append(f"  {'':2} {'Tag':<16} {'Type':<10} {'IP':<16} {'Port':<6} {'Actions'}")
+        content.append(f"  {'':2} {t('profiles', 'col_tag'):<16} {t('profiles', 'col_type'):<10} {t('profiles', 'col_ip'):<16} {t('profiles', 'col_port'):<6} {t('profiles', 'col_actions')}")
         content.append("  " + "─" * 55)
         for i, p in enumerate(profs):
             marker = "►" if i == cursor else " "
@@ -52,7 +42,7 @@ def build_benign_profiles_section(profiles=None, cursor=0, page=0, detail_cursor
     if selected:
         content.append("")
         content.append(f"─── {selected.device_tag or selected.device_type} ────────────────")
-        content.append(f"  IP: {selected.device_ip}  Port: {selected.port}  Auth: {selected.auth_user or '—'}")
+        content.append(f"  {t('profiles', 'lbl_ip')}: {selected.device_ip}  {t('profiles', 'lbl_port')}: {selected.port}  {t('profiles', 'lbl_auth')}: {selected.auth_user or '—'}")
         content.append("")
         if selected.actions:
             content.append(f"  ── {t('profiles', 'actions_available')} ──")
@@ -65,8 +55,8 @@ def build_benign_profiles_section(profiles=None, cursor=0, page=0, detail_cursor
 
     n = len(profs)
     return Section(
-        key="benign_profiles", label="Benign Profiles",
-        hint=f"A=add · S=scan endpoints · E=edit · R=remove · {n} profiles",
+        key="benign_profiles", label=t("menu", "benign_profiles"),
+        hint=t("profiles", "hint_default", n),
         content_lines=content, actions=[], field_map=[],
     )
 

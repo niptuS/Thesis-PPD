@@ -23,6 +23,7 @@ class PortScanAttack(BaseAttack):
             start = time.time()
             result = subprocess.run(
                 ["nmap", timing, "-p", port_range, target_ip],
+                stdin=subprocess.DEVNULL,
                 capture_output=True, text=True, timeout=duration_s,
                 check=False,
             )

@@ -10,6 +10,7 @@
     "live": "Live Execution",
     "logs": "Logs",
     "artifacts": "Artifacts",
+    "viewer": "Capture Viewer",
     "help": "Help"
   },
   "home": {
@@ -27,7 +28,13 @@
     "start_scenario": "Start scenario",
     "open_logs": "Open logs",
     "abort_execution": "Abort execution",
-    "language": "Language"
+    "language": "Language",
+    "loading": "Loading...",
+    "hint_default": "Ctrl+O load - Ctrl+S save - Ctrl+R run",
+    "hint_focus": "← sidebar - Enter=edit - Ctrl+O load - Ctrl+S save",
+    "scenario_name": "Scenario",
+    "start": "Start",
+    "duration": "Duration"
   },
   "scenario": {
     "title": "Scenario Configuration",
@@ -36,7 +43,11 @@
     "environment": "Environment",
     "start_time": "Start time",
     "duration": "Planned duration",
-    "chunk_size": "Chunk max size"
+    "chunk_size": "Chunk max size",
+    "duration_format": "Duration (HH:MM:SS / 7d / 2w)",
+    "chunk_size_format": "Chunk max size (KB)",
+    "hint_edit": "↑↓=field - Enter=edit - Ctrl+S=save - Ctrl+O=load",
+    "duration_title": "Scenario duration"
   },
   "devices": {
     "title": "Network Devices",
@@ -48,7 +59,35 @@
     "host_registered": "Host registered as attacker",
     "host_ip_updated": "Host IP updated",
     "device_removed": "Device removed (+ cascade)",
-    "count": "device(s)"
+    "count": "device(s)",
+    "scan_settings": "Scan Settings",
+    "registered_nodes": "Registered Nodes",
+    "last_scan": "Last scan",
+    "not_set_ctrl_n": "(not set — Ctrl+N)",
+    "editable_fields": "Editable fields (Enter=edit)",
+    "role": "Role",
+    "tags": "Tags",
+    "hostname": "Hostname",
+    "notes": "Notes",
+    "device_type": "Device type",
+    "lbl_ip": "IP",
+    "lbl_mac": "MAC",
+    "lbl_ports": "Ports",
+    "lbl_proto": "Proto",
+    "lbl_vendor": "Vendor",
+    "lbl_iot_score": "IoT score",
+    "lbl_status": "Status",
+    "col_id": "ID",
+    "col_type": "Type",
+    "col_role": "Role",
+    "col_ip": "IP",
+    "col_vendor": "Vendor",
+    "col_st": "St",
+    "col_tags": "Tags",
+    "hint_default": "S=scan - A=add - M=method - R=remove - Enter=edit - ↑↓=navigate",
+    "method_desc_nmap": "Host discovery + port scan",
+    "method_desc_arp": "ARP broadcast (fast, LAN only)",
+    "method_desc_all": "nmap + ARP combined"
   },
   "attacks": {
     "title": "Attack Library",
@@ -64,14 +103,20 @@
     "continuous": "recommended (continuous)",
     "automatic": "automatic (finishes on its own)",
     "plugins": "PLUGINS",
-    "natives_plugins": "Attack Library ({0} native · {1} plugins)",
+    "natives_plugins": "Attack Library ({0} native - {1} plugins)",
     "plugin_loaded": "Plugin loaded",
     "available": "Available",
     "not_found": "Not found",
     "not_verified": "Not verified",
     "function": "Function",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "external_plugin": "External plugin",
+    "plugins_count": "plugin(s)",
+    "col_desc": "Desc",
+    "hint_default": "V=verify - P=plugins - ↑↓=navigate - Tools: {0}/{1} available",
+    "hint_not_found": "not found",
+    "hint_plugins": "plugin(s)"
   },
   "timeline": {
     "title": "Event Timeline",
@@ -84,7 +129,24 @@
     "offset": "Offset (HH:MM:SS)",
     "no_events_add": "(no events — press A to add)",
     "not_calculated": "(not calculated)",
-    "events_summary": "{0} events ({1} pending, {2} completed)"
+    "events_summary": "{0} events ({1} pending, {2} completed)",
+    "scheduled_events": "Scheduled Events",
+    "lbl_id": "ID",
+    "lbl_offset": "Offset",
+    "lbl_scheduled": "Scheduled",
+    "lbl_action": "Action",
+    "lbl_source": "Source",
+    "lbl_target": "Target",
+    "lbl_duration": "Duration",
+    "lbl_status": "Status",
+    "lbl_notes": "Notes",
+    "auto_host": "(auto: host)",
+    "col_st": "St",
+    "col_offset": "Offset",
+    "col_type": "Type",
+    "col_action": "Action",
+    "col_target": "Target",
+    "col_scheduled": "Scheduled"
   },
   "profiles": {
     "title": "Benign Profiles",
@@ -103,7 +165,16 @@
     "http_password": "HTTP password",
     "no_profiles_add": "(no profiles — press A to add)",
     "no_actions_scan": "(no actions — press S to scan endpoints)",
-    "actions_available": "Actions (only available ones appear in Timeline)"
+    "actions_available": "Actions (only available ones appear in Timeline)",
+    "col_tag": "Tag",
+    "col_type": "Type",
+    "col_ip": "IP",
+    "col_port": "Port",
+    "col_actions": "Actions",
+    "lbl_ip": "IP",
+    "lbl_port": "Port",
+    "lbl_auth": "Auth",
+    "hint_default": "A=add - S=scan endpoints - E=edit - R=remove - {0} profiles"
   },
   "attackers": {
     "title": "Attacker Machines",
@@ -112,7 +183,18 @@
     "verify_machine": "Verify on machine",
     "no_attackers_add": "(no attackers — add devices with role=attacker in Devices)",
     "not_configured": "(not configured)",
-    "attackers_summary": "{0} attackers ({1} local, {2} ssh)"
+    "attackers_summary": "{0} attackers ({1} local, {2} ssh)",
+    "lbl_connection": "Connection",
+    "lbl_ssh_user": "SSH user",
+    "lbl_ssh_port": "SSH port",
+    "lbl_ssh_password": "SSH password",
+    "lbl_ssh_key": "SSH key",
+    "enter_to_set": "(Enter)",
+    "col_tag": "Tag",
+    "col_mode": "Mode",
+    "col_ip": "IP",
+    "col_user": "User",
+    "col_port": "Port"
   },
   "live": {
     "capture_started": "Capture started on",
@@ -138,11 +220,15 @@
     "next": "Next",
     "events": "Events",
     "flows_nfstream": "Flows NFStream",
+    "flows_csv": "Flows CSV",
     "runtime": "Runtime",
     "health": "Health",
-    "hint_idle": "Ctrl+R=start · Configure scenario and devices before running",
-    "hint_running": "Ctrl+P=pause · Ctrl+X=abort · {0}/{1}",
-    "hint_other": "State: {0} · Flows: {1} · Ctrl+R=restart"
+    "capture_label": "capture",
+    "logger_label": "logger",
+    "error": "Error",
+    "hint_idle": "Ctrl+R=start - Ctrl+X=abort - Configure scenario and devices before running",
+    "hint_running": "Ctrl+P=pause - Ctrl+X=abort - {0}/{1}",
+    "hint_other": "State: {0} - Flows: {1} - Ctrl+R=restart"
   },
   "logs": {
     "title": "Live Event Stream",
@@ -151,7 +237,7 @@
     "filter": "Filter",
     "showing": "showing",
     "showing_range": "── showing {0}-{1} of {2}  (↑↓ scroll) ──",
-    "hint": "↑↓=scroll · Events: {0}"
+    "hint": "↑↓=scroll - Events: {0}"
   },
   "artifacts": {
     "title": "Capture Files",
@@ -166,8 +252,34 @@
     "type": "Type",
     "size": "Size",
     "page": "Page",
-    "hint_files": "Enter=open · R=refresh · ↑↓=navigate",
-    "hint_detail": "Esc=back · ↑↓=navigate · PgUp/PgDn=page"
+    "hint_files": "Enter=open - R=refresh - ↑↓=navigate",
+    "hint_detail": "Esc=back - ↑↓=navigate - PgUp/PgDn=page",
+    "col_no": "#",
+    "col_time": "Time",
+    "col_source": "Source",
+    "col_dest": "Dest",
+    "col_proto": "Proto",
+    "col_len": "Len",
+    "col_ports": "Ports",
+    "col_flags": "Flags"
+  },
+  "help": {
+    "hint": "Quick reference for the full flow. Esc=back",
+    "nav_title": "Navigation",
+    "nav_move": "move in menu or lists",
+    "nav_enter": "open / edit",
+    "nav_esc": "back to Home",
+    "nav_tab": "cycle sections",
+    "nav_help": "contextual help",
+    "nav_q": "close current panel",
+    "shortcuts_title": "Global Shortcuts",
+    "sc_save": "save scenario",
+    "sc_run": "start / resume",
+    "sc_pause": "pause",
+    "sc_logs": "open logs",
+    "sc_abort": "abort scenario",
+    "flow_title": "Recommended Flow",
+    "esc_back": "Esc Back"
   },
   "common": {
     "available": "available",
@@ -184,6 +296,26 @@
     "select_language": "Select language",
     "cancel": "Cancel",
     "no_ip": "no IP",
-    "page": "Page"
+    "page": "Page",
+    "error": "Error",
+    "of": "of",
+    "editing": "(editing)",
+    "hint_prefix": "Hint:",
+    "footer_ok_cancel": "Enter=ok  Esc=cancel",
+    "footer_navigate_ok_cancel": "↑↓=navigate  Enter=ok  Esc=cancel",
+    "footer_wheel": "←→=slot  ↑↓=value  Enter=ok  Esc=×",
+    "footer_enter_select": "Enter=select  Esc=cancel",
+    "terminal_too_small": "Terminal too small. Min 40x10.",
+    "selection_canceled": "Selection canceled.",
+    "config_init_failed": "! Could not initialize config.",
+    "no_scenario": "! No scenario. Edit fields or use Ctrl+O.",
+    "file_path": "File path",
+    "select_iface": "Select network interface",
+    "select_role": "Select Role",
+    "time": "Time",
+    "date_and_time": "Date and Time",
+    "duration": "Duration",
+    "confirm_cancel": "[Enter] Confirm [Esc] Cancel",
+    "menu_title": "MENU"
   }
 }
