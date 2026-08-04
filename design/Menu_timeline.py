@@ -20,14 +20,9 @@ _STATUS_ICON = {
 }
 
 
-"""
-Entrada: events (list), cursor (int), page (int)
-Salida: list[str]
-Descripción: Builds the paginated event table lines.
-"""
 def _build_event_table(events, cursor=0, page=0):
     lines = []
-    header = f"  {'':2} {'St':2} {'Offset':<10} {'Type':<8} {'Action':<16} {'Target':<14} {'Scheduled':<12}"
+    header = f"  {'':2} {t('timeline', 'col_st'):2} {t('timeline', 'col_offset'):<10} {t('timeline', 'col_type'):<8} {t('timeline', 'col_action'):<16} {t('timeline', 'col_target'):<14} {t('timeline', 'col_scheduled'):<12}"
     lines.append(header)
     lines.append("  " + "─" * (len(header) - 2))
     if not events:
@@ -55,35 +50,25 @@ def _build_event_table(events, cursor=0, page=0):
     return lines
 
 
-"""
-Entrada: ev (TimelineEvent)
-Salida: list[str]
-Descripción: Builds the detail lines for the selected event.
-"""
 def _build_selected_detail(ev):
     return [
-        f"  ID          : {ev.event_id}",
-        f"  Offset      : {ev.offset_str()} ({ev.offset_s}s)",
-        f"  Scheduled   : {ev.scheduled_dt or t('timeline', 'not_calculated')}",
-        f"  Event type  : {ev.event_type}",
-        f"  Action      : {ev.action}",
-        f"  Source      : {ev.source} (auto: host)",
-        f"  Target      : {ev.target}",
-        f"  Duration    : {ev.duration_s}s",
-        f"  Status      : {ev.status}",
-        f"  Notes       : {ev.notes or '—'}",
+        f"  {t('timeline', 'lbl_id'):<13}: {ev.event_id}",
+        f"  {t('timeline', 'lbl_offset'):<13}: {ev.offset_str()} ({ev.offset_s}s)",
+        f"  {t('timeline', 'lbl_scheduled'):<13}: {ev.scheduled_dt or t('timeline', 'not_calculated')}",
+        f"  {t('timeline', 'event_type'):<13}: {ev.event_type}",
+        f"  {t('timeline', 'lbl_action'):<13}: {ev.action}",
+        f"  {t('timeline', 'lbl_source'):<13}: {ev.source} {t('timeline', 'auto_host')}",
+        f"  {t('timeline', 'lbl_target'):<13}: {ev.target}",
+        f"  {t('timeline', 'lbl_duration'):<13}: {ev.duration_s}s",
+        f"  {t('timeline', 'lbl_status'):<13}: {ev.status}",
+        f"  {t('timeline', 'lbl_notes'):<13}: {ev.notes or '—'}",
     ]
 
 
-"""
-Entrada: events (list|None), cursor (int), page (int)
-Salida: Section
-Descripción: Builds the full timeline section with table and detail.
-"""
 def build_timeline_section(events=None, cursor=0, page=0):
     event_list = events if events is not None else []
     selected = event_list[cursor] if event_list and 0 <= cursor < len(event_list) else None
-    content = ["─── Scheduled Events ─────────────────────────────────"]
+    content = [f"─── {t('timeline', 'scheduled_events')} ─────────────────────────────────"]
     content.extend(_build_event_table(event_list, cursor, page))
     if selected is not None:
         content.append("")
@@ -93,7 +78,7 @@ def build_timeline_section(events=None, cursor=0, page=0):
     pending = sum(1 for e in event_list if e.status == "queued")
     done = sum(1 for e in event_list if e.status == "completed")
     return Section(
-        key="timeline", label="Timeline",
+        key="timeline", label=t("menu", "timeline"),
         hint=t("timeline", "events_summary", total, pending, done),
         content_lines=content, actions=[], field_map=[],
     )

@@ -40,7 +40,7 @@ from design.Menu_attackers import ATTACKERS_SECTION
 from design.Menu_live import LIVE_SECTION
 from design.Menu_logs import LOGS_SECTION, build_logs_section, EVENT_LOG
 from design.Menu_artifacts import ARTIFACTS_SECTION
-from design.Menu_help import HELP_SECTION
+from design.Menu_help import HELP_SECTION, build_help_section
 
 from design.models import Section, FieldMeta
 from modules.i18n import t, set_language, get_language, LANGUAGES
@@ -51,9 +51,9 @@ OUTPUT_PCAP = "outputs/pcap"
 CAPTURE_IFACE: str = ""
 
 HOME_SECTION = Section(
-    key="home", label="Home",
-    hint="Ctrl+O load · Ctrl+S save · Ctrl+R run",
-    content_lines=["  Loading..."],
+    key="home", label=t("menu", "home"),
+    hint=t("home", "hint_default"),
+    content_lines=[f"  {t('home', 'loading')}"],
     actions=[], field_map=[],
 )
 
@@ -540,7 +540,9 @@ Entrada: stdscr, default (str), title (str)
 Salida: str
 Descripción: Shows a file path input overlay and returns the entered path.
 """
-def _file_prompt_overlay(stdscr, default: str, title: str = "File path") -> str:
+def _file_prompt_overlay(stdscr, default: str, title: str = "") -> str:
+    if not title:
+        title = t("common", "file_path")
     max_y, max_x = stdscr.getmaxyx()
     overlay_w = min(64, max_x - 4)
     overlay_h = 5
@@ -552,7 +554,7 @@ def _file_prompt_overlay(stdscr, default: str, title: str = "File path") -> str:
         stdscr.attroff(curses.color_pair(PAIR_OVERLAY_BG))
     stdscr.attron(curses.color_pair(PAIR_OVERLAY_TTL) | curses.A_BOLD)
     stdscr.addstr(oy, ox, f" {title} "[:overlay_w].ljust(overlay_w))
-    stdscr.addstr(oy + 4, ox, " [Enter] Confirm [Esc] Cancel "[:overlay_w])
+    stdscr.addstr(oy + 4, ox, f" {t('common', 'confirm_cancel')} "[:overlay_w])
     stdscr.attroff(curses.color_pair(PAIR_OVERLAY_TTL) | curses.A_BOLD)
     stdscr.attron(curses.color_pair(PAIR_OVERLAY_BG))
     stdscr.addstr(oy + 2, ox + 2, "> ")
@@ -667,10 +669,10 @@ def iface_select_overlay(stdscr, current: str) -> str:
             stdscr.addstr(y, ox, " " * overlay_w)
             stdscr.attroff(curses.color_pair(PAIR_OVERLAY_BG))
         stdscr.attron(curses.color_pair(PAIR_OVERLAY_TTL) | curses.A_BOLD)
-        stdscr.addstr(oy, ox, " Select network interface ".center(overlay_w))
+        stdscr.addstr(oy, ox, f" {t('common', 'select_iface')} ".center(overlay_w))
         stdscr.attroff(curses.color_pair(PAIR_OVERLAY_TTL) | curses.A_BOLD)
         stdscr.attron(curses.color_pair(PAIR_OVERLAY_BG))
-        stdscr.addstr(oy + overlay_h - 1, ox, " Enter=select  Esc=cancel ".center(overlay_w))
+        stdscr.addstr(oy + overlay_h - 1, ox, f" {t('common', 'footer_enter_select')} ".center(overlay_w))
         stdscr.attroff(curses.color_pair(PAIR_OVERLAY_BG))
 
         list_top = oy + 2
@@ -737,7 +739,7 @@ def choice_select_overlay(
         stdscr.attroff(curses.color_pair(PAIR_OVERLAY_TTL) | curses.A_BOLD)
         stdscr.attron(curses.color_pair(PAIR_OVERLAY_BG))
         stdscr.addstr(oy + overlay_h - 1, ox,
-                       " Enter=select  Esc=cancel ".center(overlay_w))
+                       f" {t('common', 'footer_enter_select')} ".center(overlay_w))
         stdscr.attroff(curses.color_pair(PAIR_OVERLAY_BG))
         list_top = oy + 2
         for i, name in enumerate(options):
@@ -832,7 +834,7 @@ class MenuApp:
             code = next(k for k, v in LANGUAGES.items() if v == sel)
             set_language(code)
             EVENT_LOG.info(f"Language changed to {sel}")
-            self._refresh_home_section()
+            self._refresh_all_sections()
 
     """
     Entrada: None
@@ -1033,9 +1035,9 @@ class MenuApp:
         ]
         if name:
             lines.extend([
-                f"  Scenario  : {name}",
-                f"  Start     : {start}",
-                f"  Duration  : {duration}",
+                f"  {t('home', 'scenario_name'):<10}: {name}",
+                f"  {t('home', 'start'):<10}: {start}",
+                f"  {t('home', 'duration'):<10}: {duration}",
                 "",
             ])
         lines.extend([
@@ -1059,7 +1061,7 @@ class MenuApp:
         updated = Section(
             key="home",
             label=t("menu", "home"),
-            hint="← sidebar · Enter=edit · Ctrl+O load · Ctrl+S save",
+            hint=t("home", "hint_focus"),
             content_lines=lines,
             actions=[],
             field_map=[
@@ -1068,6 +1070,65 @@ class MenuApp:
         )
         self.replace_section("home", updated)
 
+
+    """
+    Entrada: None
+    Salida: None
+    Descripción: Rebuilds ALL sections after a language change. Each section's
+                 label, hint, headers and field labels are re-evaluated with
+                 the new language via t().
+    """
+    def _refresh_all_sections(self) -> None:
+        self._refresh_home_section()
+        self._refresh_scenario_section()
+        self._refresh_devices_section()
+        self._refresh_logs_section()
+
+        # Rebuild sections that have static builders (no runtime state)
+        from design.Menu_attacks import build_attacks_section
+        self.replace_section("attacks", build_attacks_section())
+
+        from design.Menu_timeline import build_timeline_section
+        ctrl_tl = getattr(self, "_ctrl_timeline", None)
+        if ctrl_tl is not None and hasattr(ctrl_tl, "manager"):
+            self.replace_section("timeline", build_timeline_section(
+                events=ctrl_tl.manager.events,
+                cursor=ctrl_tl._cursor,
+                page=ctrl_tl._page,
+            ))
+        else:
+            from design.Menu_timeline import TIMELINE_SECTION
+            self.replace_section("timeline", build_timeline_section())
+
+        from design.Menu_benignprofiles import build_benign_profiles_section
+        ctrl_bp = getattr(self, "_ctrl_benign", None)
+        if ctrl_bp is not None:
+            self.replace_section("benign_profiles", build_benign_profiles_section(
+                profiles=ctrl_bp.profiles,
+                cursor=ctrl_bp._cursor,
+                page=ctrl_bp._page,
+                detail_cursor=ctrl_bp._detail_cursor if ctrl_bp._zone == "detail" else -1,
+            ))
+        else:
+            from design.Menu_benignprofiles import build_benign_profiles_section as _bp
+            self.replace_section("benign_profiles", _bp())
+
+        from design.Menu_attackers import build_attackers_section
+        ctrl_atk = getattr(self, "_ctrl_attackers", None)
+        if ctrl_atk is not None:
+            self.replace_section("attackers", build_attackers_section(
+                profiles=ctrl_atk.profiles_list,
+                cursor=ctrl_atk._cursor,
+                detail_cursor=ctrl_atk._detail_cursor if ctrl_atk._zone == "detail" else -1,
+            ))
+        else:
+            from design.Menu_attackers import build_attackers_section as _atk
+            self.replace_section("attackers", _atk())
+
+        from design.Menu_artifacts import build_artifacts_section
+        self.replace_section("artifacts", build_artifacts_section())
+
+        self.replace_section("help", build_help_section())
 
     """
     Entrada: None
@@ -1171,7 +1232,7 @@ class MenuApp:
             scroll_offset=self._content_scroll.get(self._section_key(), 0),
         )
         if self._editing_line >= 0:
-            hint_text = "Type value · Enter confirm · Esc cancel"
+            hint_text = t("scenario", "hint_edit")
             hint_kind = "hint"
         elif self._status_msg:
             hint_text = self._status_msg
@@ -1331,7 +1392,7 @@ class MenuApp:
                 if not hasattr(self.active_config, "scan_method"):
                     self.active_config.scan_method = "nmap"
         if self.active_config is None:
-            self.set_status("! Could not initialize config.", "err")
+            self.set_status(t("common", "config_init_failed"), "err")
             return
         current = _get_nested(self.active_config, field.attr_path)
         if current in ("[x]", "[ ]"):
@@ -1351,7 +1412,7 @@ class MenuApp:
         if field.attr_path == "planned_duration" and self._stdscr:
             from design.overlays import duration_wheel_overlay
             new_val = duration_wheel_overlay(
-                self._stdscr, "Scenario duration", current,
+                self._stdscr, t("scenario", "duration_title"), current,
             )
             if new_val is not None:
                 _set_nested(self.active_config, field.attr_path, new_val)
@@ -1608,7 +1669,7 @@ class MenuApp:
     """
     def _do_run(self) -> None:
         if self.active_config is None:
-            self.set_status("! No scenario. Edit fields or use Ctrl+O.", "err")
+            self.set_status(t("common", "no_scenario"), "err")
             return
         self._ctrl_live.handle_key(18)
 

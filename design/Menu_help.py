@@ -1,32 +1,38 @@
 from design.models import Section
+from modules.i18n import t
 
-HELP_SECTION = Section(
-    key="help",
-    label="Help",
-    hint="Quick reference for the full flow. Esc=back",
-    content_lines=[
-        "─── Navigation ───────────────────────────────────",
-        "",
-        "  ↑↓       move in menu or lists",
-        "  Enter    open / edit",
-        "  Esc      back to Home",
-        "  Tab      cycle sections",
-        "  ?        contextual help",
-        "  q        close current panel",
-        "",
-        "─── Global Shortcuts ─────────────────────────────",
-        "",
-        "  Ctrl+S   save scenario",
-        "  Ctrl+R   start / resume",
-        "  Ctrl+P   pause",
-        "  Ctrl+L   open logs",
-        "  Ctrl+X   abort scenario",
-        "",
-        "─── Recommended Flow ─────────────────────────────",
-        "",
-        "  1. Scenario Editor   2. Devices",
-        "  3. Attack Library    4. Timeline",
-        "  5. Live Execution    6. Artifacts",
-    ],
-    actions=["Esc Back"],
-)
+
+def build_help_section() -> Section:
+    return Section(
+        key="help",
+        label=t("menu", "help"),
+        hint=t("help", "hint"),
+        content_lines=[
+            f"─── {t('help', 'nav_title')} ───────────────────────────────────",
+            "",
+            f"  ↑↓       {t('help', 'nav_move')}",
+            f"  Enter    {t('help', 'nav_enter')}",
+            f"  Esc      {t('help', 'nav_esc')}",
+            f"  Tab      {t('help', 'nav_tab')}",
+            f"  ?        {t('help', 'nav_help')}",
+            f"  q        {t('help', 'nav_q')}",
+            "",
+            f"─── {t('help', 'shortcuts_title')} ─────────────────────────────",
+            "",
+            f"  Ctrl+S   {t('help', 'sc_save')}",
+            f"  Ctrl+R   {t('help', 'sc_run')}",
+            f"  Ctrl+P   {t('help', 'sc_pause')}",
+            f"  Ctrl+L   {t('help', 'sc_logs')}",
+            f"  Ctrl+X   {t('help', 'sc_abort')}",
+            "",
+            f"─── {t('help', 'flow_title')} ─────────────────────────────",
+            "",
+            f"  1. {t('menu', 'scenario')}   2. {t('menu', 'devices')}",
+            f"  3. {t('menu', 'attacks')}    4. {t('menu', 'timeline')}",
+            f"  5. {t('menu', 'live')}    6. {t('menu', 'artifacts')}",
+        ],
+        actions=[t("help", "esc_back")],
+    )
+
+
+HELP_SECTION = build_help_section()
