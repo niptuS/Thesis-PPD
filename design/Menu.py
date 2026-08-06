@@ -819,6 +819,11 @@ class MenuApp:
         self._selected_artifact: str = ""
         self._artifact_cursor: int = 0
 
+        # Connect EVENT_LOG status callback so WARN/ERROR/OK messages
+        # appear in the hint bar as visual feedback
+        from design.Menu_logs import EVENT_LOG
+        EVENT_LOG.set_status_callback(self.set_status)
+
     """
     Entrada: None
     Salida: None

@@ -174,6 +174,16 @@ class BenignProfilesController:
             return
         stdscr = self._app._stdscr
 
+        # Block profile creation if no non-attacker devices exist
+        ctrl_d = getattr(self._app, "_ctrl_devices", None)
+        if ctrl_d is None or not ctrl_d.devices:
+            EVENT_LOG.error("No devices registered. Scan the network first (Devices -> S)")
+            return
+        non_attackers = [d for d in ctrl_d.devices if d.role != "attacker"]
+        if not non_attackers:
+            EVENT_LOG.error("No target/benign devices available. Only attacker devices are registered.")
+            return
+
         dtype = choice_select_overlay(stdscr, "Device type", DEVICE_TYPES, DEVICE_TYPES[0])
         if not dtype:
             return

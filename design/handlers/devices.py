@@ -353,20 +353,43 @@ class DevicesController:
         if ip is None or not ip.strip():
             return
         ip = ip.strip()
+
+        # Validate IP format before proceeding
+        import ipaddress as _ipaddr
+        try:
+            _ipaddr.IPv4Address(ip)
+        except ValueError:
+            EVENT_LOG.error(f"Invalid IP address: '{ip}' — must be a valid IPv4 (e.g. 192.168.1.10)")
+            return
+
         if ip in self._registry:
             EVENT_LOG.warn(f"Device {ip} already exists")
             return
         mac = text_input_overlay(stdscr, "MAC Address (optional)", "") or ""
+        mac = mac.strip()
+
+        # Validate MAC format if provided
+        if mac:
+            import re as _re
+            if not _re.match(r"^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$", mac):
+                EVENT_LOG.error(f"Invalid MAC address: '{mac}' — format must be XX:XX:XX:XX:XX:XX")
+                return
+
         from design.Menu import choice_select_overlay
         role = choice_select_overlay(stdscr, "Role", DEVICE_ROLES, "target")
-        dev = DeviceEntry(ip=ip, mac=mac, role=role or "target", status="online")
-        dev = _enrich_vendor_tags(dev)
-        dev = _apply_fingerprint(dev)
-        self._registry.upsert(dev)
-        self._device_cursor = len(self.devices) - 1
-        self._zone = "table"
-        self._sync_page()
-        EVENT_LOG.ok(f"Device added manually: {ip} ({role})")
+        try:
+            dev = DeviceEntry(ip=ip, mac=mac, role=role or "target", status="online")
+            dev = _enrich_vendor_tags(dev)
+            dev = _apply_fingerprint(dev)
+            self._registry.upsert(dev)
+            self._device_cursor = len(self.devices) - 1
+            self._zone = "table"
+            self._sync_page()
+            EVENT_LOG.ok(f"Device added manually: {ip} ({role})")
+        except ValueError as exc:
+            EVENT_LOG.error(f"Could not add device: {exc}")
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            EVENT_LOG.error(f"Unexpected error adding device: {exc}")
         self._refresh()
 
 

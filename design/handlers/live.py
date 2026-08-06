@@ -81,6 +81,14 @@ class LiveController:
             self._app.set_status("No configuration loaded.", "err")
             return
 
+        # Auto-set start_time to current date+time (DD/MM/YYYY HH:MM:SS)
+        from datetime import datetime
+        now = datetime.now()
+        config.start_time = now.strftime("%d/%m/%Y %H:%M:%S")
+        EVENT_LOG.info(f"Start time set to: {config.start_time}")
+        self._app._refresh_scenario_section()
+        self._app._refresh_home_section()
+
         events = self._gather_events(config)
 
         devices = self._gather_devices()
@@ -210,10 +218,13 @@ class LiveController:
         level_upper = level.upper()
         if level_upper in ("OK",):
             EVENT_LOG.ok(message)
+            self._app.set_status(message, "ok")
         elif level_upper in ("WARN", "WARNING"):
             EVENT_LOG.warn(message)
+            self._app.set_status(message, "warn")
         elif level_upper in ("ERROR", "ERR"):
             EVENT_LOG.error(message)
+            self._app.set_status(message, "err")
         else:
             EVENT_LOG.info(message)
 

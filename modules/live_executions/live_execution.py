@@ -98,6 +98,7 @@ class LiveExecutionEngine:
         self._next_event: str = "—"
         self._flows_count: int = 0
         self._error: str = ""
+        self._duration_warned: bool = False
         self._iface: str = ""
         self._config: Any = None
         self._capture_benign: bool = True
@@ -226,6 +227,7 @@ class LiveExecutionEngine:
         self._fired = 0
         self._flows_count = 0
         self._error = ""
+        self._duration_warned = False
         self._end_time = 0.0
         self._next_event = self._format_next_event()
 
@@ -248,17 +250,22 @@ class LiveExecutionEngine:
             else:
                 self._log("SSH mode without configured IP — attacks only logged", "WARN")
 
-        # Build device map
+        # Build device map {ip: role} for flow labeling
+        # and device info {ip: {"role": ..., "mac": ...}} for metadata
         self._device_map = {}
+        self._device_info = {}
         from modules.devices.host_detector import get_host_ip
         host_ip = get_host_ip()
         self._device_map[host_ip] = "attacker"
+        self._device_info[host_ip] = {"role": "attacker", "mac": ""}
         if devices:
             for dev in devices:
                 ip = getattr(dev, "ip", "")
                 role = getattr(dev, "role", "unknown")
+                mac = getattr(dev, "mac", "")
                 if ip:
                     self._device_map[ip] = role
+                    self._device_info[ip] = {"role": role, "mac": mac or ""}
         self._profiles = profiles or []
         if self._profiles:
             self._log(f"Benign profiles: {len(self._profiles)} loaded", "INFO")
@@ -388,8 +395,13 @@ class LiveExecutionEngine:
                 elapsed = time.time() - self._start_time
 
                 if self._planned_s > 0 and elapsed >= self._planned_s:
-                    self._log("Planned duration reached", "INFO")
-                    break
+                    if not self._duration_warned:
+                        self._log(
+                            f"Planned duration reached ({self._planned_s:.0f}s) "
+                            f"- capture continues until all events fire or Ctrl+X",
+                            "WARN",
+                        )
+                        self._duration_warned = True
 
                 while event_idx < len(sorted_events):
                     ev = sorted_events[event_idx]
@@ -404,6 +416,10 @@ class LiveExecutionEngine:
                             self._next_event = "—"
                     else:
                         break
+
+                # The capture only stops when the user presses Ctrl+X.
+                # All events firing does NOT stop the capture — the user
+                # may want to keep capturing benign traffic.
 
                 time.sleep(0.5)
 
@@ -455,6 +471,7 @@ class LiveExecutionEngine:
                 planned_s=self._planned_s,
                 iface=self._iface,
                 device_map=self._device_map,
+                device_info=self._device_info,
                 events=self._events,
                 events_fired=self._fired,
                 flows_count=self._flows_count,

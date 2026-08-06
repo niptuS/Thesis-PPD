@@ -215,6 +215,7 @@ class TimelineController:
             if not action:
                 return
         else:
+            # Benign event — require a profile with scanned endpoints
             profile_actions = self._get_profile_actions(target_ip)
             if profile_actions:
                 action_names = [a.name for a in profile_actions]
@@ -222,9 +223,25 @@ class TimelineController:
                 if not action:
                     return
             else:
-                action = text_input_overlay(stdscr, "Benign action (no profile)")
-                if action is None:
-                    return
+                # No profile or no scanned endpoints for this device
+                ctrl_bp = getattr(self._app, "_ctrl_benign", None)
+                has_profile = False
+                if ctrl_bp:
+                    for p in ctrl_bp.profiles:
+                        if p.device_ip == target_ip:
+                            has_profile = True
+                            break
+                if has_profile:
+                    EVENT_LOG.error(
+                        f"Device {target_ip} has a profile but no scanned endpoints. "
+                        f"Scan endpoints first (Benign Profiles -> S)"
+                    )
+                else:
+                    EVENT_LOG.error(
+                        f"No benign profile for {target_ip}. "
+                        f"Create and scan a profile first (Benign Profiles -> A)"
+                    )
+                return
 
         config = self._app.active_config
         scenario_start = getattr(config, "start_time", "00:00:00") if config else "00:00:00"

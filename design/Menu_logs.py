@@ -52,6 +52,16 @@ class EventLog:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._entries: list[LogEntry] = []
+        self._status_callback = None
+
+    '''
+    Entrada: callback (callable)
+    Salida: None
+    Descripción: Sets a status callback so WARN/ERROR/OK messages also
+                 appear in the hint bar as visual feedback.
+    '''
+    def set_status_callback(self, callback) -> None:
+        self._status_callback = callback
 
     '''
     Entrada: message (str), level (str)
@@ -68,6 +78,14 @@ class EventLog:
             self._entries.append(entry)
             if len(self._entries) > self.MAX_ENTRIES:
                 self._entries = self._entries[-self.MAX_ENTRIES:]
+
+        # Show WARN/ERROR/OK in the status bar as visual feedback
+        if self._status_callback and level in (LEVEL_WARN, LEVEL_ERROR, LEVEL_OK):
+            kind = {"WARN": "warn", "ERROR": "err", "OK": "ok"}.get(level, "hint")
+            try:
+                self._status_callback(message, kind)
+            except Exception:
+                pass
 
     '''
     Entrada: msg (str)
