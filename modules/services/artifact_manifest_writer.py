@@ -50,9 +50,10 @@ class ArtifactManifestWriter:
         planned_s: float,
         iface: str,
         device_map: dict,
-        events: list,
-        events_fired: int,
-        flows_count: int,
+        device_info: dict | None = None,
+        events: list = None,
+        events_fired: int = 0,
+        flows_count: int = 0,
     ) -> bool:
         exp_id = getattr(config, "experiment_id", "EXP")
         now = datetime.now(timezone.utc).isoformat()
@@ -93,7 +94,8 @@ class ArtifactManifestWriter:
             "actual_duration_s": round(actual_dur, 2),
             "state": state,
             "capture_interface": iface,
-            "devices": {ip: role for ip, role in device_map.items()},
+            "devices": {ip: (device_info or {}).get(ip, {"role": role, "mac": ""})
+                        for ip, role in device_map.items()},
             "events_total": len(events),
             "events_fired": events_fired,
             "flows_extracted": flows_count,

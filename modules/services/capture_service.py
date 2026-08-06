@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
+import threading
 import time
 import logging
 from typing import Callable, Optional
@@ -34,6 +35,7 @@ class CaptureService:
         self._pcap_max_size_kb: int = 512000
         self._iface: str = ""
         self._capture_ok: bool = False
+        self._stderr_drain_thread: Optional[threading.Thread] = None
 
     """
     Entrada: iface (str), pcap_path (str), pcap_max_size_kb (int)
@@ -112,18 +114,40 @@ class CaptureService:
             self._pcap_proc = subprocess.Popen(
                 cmd,
                 stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
             )
 
             time.sleep(1)
             if self._pcap_proc.poll() is not None:
-                _, stderr = self._pcap_proc.communicate(timeout=3)
-                err_msg = stderr.decode("utf-8", errors="replace").strip()
+                # tcpdump died early — read stderr to get the error
+                try:
+                    _, stderr = self._pcap_proc.communicate(timeout=3)
+                    err_msg = stderr.decode("utf-8", errors="replace").strip()
+                except Exception:  # pylint: disable=broad-exception-caught
+                    err_msg = "process exited (could not read stderr)"
                 self._log(f"Capture failed to start: {err_msg}", "ERROR")
                 self._capture_ok = False
                 self._pcap_proc = None
                 return
+
+            # tcpdump is running — drain stderr in a background thread to
+            # prevent the pipe buffer (64 KB on Linux) from filling up and
+            # blocking tcpdump, which would prevent SIGINT from working at
+            # stop time and freeze the terminal.
+            import threading
+            def _drain_stderr():
+                try:
+                    while self._pcap_proc and self._pcap_proc.poll() is None:
+                        line = self._pcap_proc.stderr.readline()
+                        if not line:
+                            break
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass
+            self._stderr_drain_thread = threading.Thread(
+                target=_drain_stderr, daemon=True,
+            )
+            self._stderr_drain_thread.start()
 
             self._capture_ok = True
             self._log(f"Capture started on {self._iface}", "OK")
@@ -187,6 +211,15 @@ class CaptureService:
                     self._pcap_proc.kill()
                 except Exception:  # pylint: disable=broad-exception-caught
                     pass
+
+        # Close stderr pipe and wait for drain thread to finish
+        try:
+            if self._pcap_proc and self._pcap_proc.stderr:
+                self._pcap_proc.stderr.close()
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
+        if self._stderr_drain_thread:
+            self._stderr_drain_thread.join(timeout=2)
 
         pcap_files = self.find_pcap_files()
         if pcap_files:
