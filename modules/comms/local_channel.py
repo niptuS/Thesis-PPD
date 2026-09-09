@@ -20,9 +20,6 @@ logger = logging.getLogger(__name__)
 # the TUI. Redirect to /dev/null instead.
 _HIGH_OUTPUT_PATTERNS = (
     "--flood",
-    "--icmp --flood",
-    "--udp --flood",
-    "slowloris",
     "aireplay-ng --deauth",
 )
 
@@ -88,7 +85,7 @@ class LocalChannel(BaseChannel):
                     duration=elapsed,
                 )
             else:
-                # Normal capture for recon attacks (nmap, hydra, etc.)
+                # Normal capture for recon attacks (nmap, hydra, slowloris, etc.)
                 result = subprocess.run(
                     actual_cmd, shell=True,
                     stdin=subprocess.DEVNULL,
@@ -100,7 +97,15 @@ class LocalChannel(BaseChannel):
                     return ChannelResult(
                         success=True, output=result.stdout, duration=elapsed,
                     )
-                err = (result.stderr or "").strip() or f"exit code {result.returncode}"
+                # Show actual stderr if available — helps diagnose failures
+                err = (result.stderr or "").strip()
+                if not err:
+                    err = (result.stdout or "").strip()
+                if not err:
+                    err = f"exit code {result.returncode}"
+                # Truncate long errors
+                if len(err) > 300:
+                    err = err[:300] + "..."
                 return ChannelResult(
                     success=False, output=result.stdout,
                     error=err, duration=elapsed,

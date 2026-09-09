@@ -10,7 +10,6 @@ modules/live_executions/__pycache__
 modules/profiles/__pycache__
 modules/timeline/__pycache__
 modules/communication/__pycache__
-modules/services/__pycache__
 design/handlers/__pycache__
 reports/*
 outputs/flows/*

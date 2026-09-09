@@ -46,6 +46,26 @@ class EventExecutor:
         # Labels shown in the Live panel
         self.active_benign: str = "—"
         self.active_attack: str = "—"
+        # Port rotation for concurrent same-attack events
+        self._port_counters: dict[str, int] = {}
+
+    """
+    Entrada: attack_name (str), target_ip (str)
+    Salida: int
+    Descripción: Returns the next port to use for an attack. For concurrent
+                 same-attack events against the same target, rotates through
+                 common HTTP ports (80, 8080, 81, 82, 83, ...) to avoid
+                 socket/port exhaustion.
+    """
+    def _next_port(self, attack_name: str, target_ip: str) -> int:
+        key = f"{attack_name}@{target_ip}"
+        idx = self._port_counters.get(key, 0)
+        ports = [80, 8080, 81, 82, 83, 84, 85, 86, 87, 88]
+        port = ports[idx % len(ports)]
+        self._port_counters[key] = idx + 1
+        if idx > 0:
+            self._log(f"  Concurrent {attack_name} #{idx + 1} → using port {port}", "INFO")
+        return port
 
     # ── Configuration ────────────────────────────────────────────────────────
 
@@ -265,10 +285,14 @@ class EventExecutor:
                 gateway = ip
                 break
 
+        # Use different ports for concurrent same-attack events to avoid
+        # socket/port exhaustion (e.g. 5x slowloris on port 80 → collision)
+        port = self._next_port(attack_name, target_ip)
+
         cmd = attack_def.build_command(
             target_ip=target_ip,
             duration=duration_s or attack_def.recommended_dur_s,
-            port=80, gateway=gateway,
+            port=port, gateway=gateway,
         )
         needs_root = attack_def.requires_root
 
@@ -389,9 +413,14 @@ class EventExecutor:
     def _exec_attack_local(self, name: str, cmd: str, target_ip: str,
                            duration_s: int, needs_root: bool = False) -> None:
         def _run():
+            # For continuous attacks, the subprocess timeout = duration + 5s grace
+            # The subprocess will be killed by subprocess.run(timeout=...)
+            # and LocalChannel treats TimeoutExpired as success (attack ran
+            # for its planned duration).
+            actual_timeout = (duration_s + 5) if duration_s else 120
             result = self._local.execute(
                 target_ip=target_ip, command=cmd,
-                timeout=duration_s + 30 if duration_s else 120,
+                timeout=actual_timeout,
                 use_sudo=needs_root,
             )
             if result.success:

